@@ -133,6 +133,20 @@
   input[type="number"]:focus-visible{
     outline:2px solid var(--blue); outline-offset:1px;
   }
+  input[type="number"]::placeholder{ color:var(--ink-muted); opacity:.75; }
+
+  .empty-state{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:6px; text-align:center; padding:72px 24px;
+    border:1.5px dashed var(--line); border-radius:10px; background:var(--panel-2);
+  }
+  .empty-state[hidden]{ display:none; }
+  .empty-state-title{
+    font-family:var(--font-display); font-size:1rem; font-weight:700; color:var(--ink); margin:0;
+  }
+  .empty-state-text{
+    font-size:.85rem; color:var(--ink-muted); max-width:38ch; margin:0; line-height:1.5;
+  }
 
   .preview-panel{ padding:16px 18px 20px; }
   .preview-toolbar{
@@ -153,6 +167,7 @@
   button.primary{ background:var(--blue); border-color:var(--blue); color:var(--panel); }
 
   .preview-body{ display:flex; gap:16px; align-items:flex-start; }
+  .preview-body[hidden]{ display:none; }
   .canvas-wrap{
     flex:1; min-width:0;
     border:1px solid var(--line); border-radius:8px; overflow:auto;
@@ -209,24 +224,24 @@
           <details class="accordion-section" name="config-accordion" open>
             <summary class="accordion-header">Parcela<span class="accordion-chevron">⌄</span></summary>
             <div class="accordion-body">
-              <label>Comprimento (m)<input type="number" id="comprimento" value="12" step="0.5" min="0.1"></label>
-              <label>Largura (m)<input type="number" id="largura" value="30" step="0.5" min="0.1"></label>
+              <label>Comprimento (m)<input type="number" id="comprimento" placeholder="ex: 12" step="0.5" min="0.1"></label>
+              <label>Largura (m)<input type="number" id="largura" placeholder="ex: 30" step="0.5" min="0.1"></label>
             </div>
           </details>
           <details class="accordion-section" name="config-accordion">
             <summary class="accordion-header">Layout<span class="accordion-chevron">⌄</span></summary>
             <div class="accordion-body">
-              <label>Qtd. de blocos (colunas)<input type="number" id="blocos" value="5" step="1" min="1"></label>
-              <label>Parcelas por bloco (linhas)<input type="number" id="linhas" value="5" step="1" min="1"></label>
+              <label>Qtd. de blocos (colunas)<input type="number" id="blocos" placeholder="ex: 5" step="1" min="1"></label>
+              <label>Parcelas por bloco (linhas)<input type="number" id="linhas" placeholder="ex: 5" step="1" min="1"></label>
             </div>
           </details>
           <details class="accordion-section" name="config-accordion">
             <summary class="accordion-header">Carreadores<span class="accordion-chevron">⌄</span></summary>
             <div class="accordion-body">
-              <p class="accordion-hint">Carreador entre parcelas com 0 m = parcelas encostadas</p>
-              <label>Carreador entre blocos (m)<input type="number" id="carreadorInterno" value="10" step="0.5" min="0"></label>
-              <label>Carreador entre parcelas (m)<input type="number" id="carreadorParcela" value="0" step="0.5" min="0"></label>
-              <label>Carreador de limite (m)<input type="number" id="carreadorLimite" value="10" step="0.5" min="0"></label>
+              <p class="accordion-hint">Em branco = 0 m (parcelas/blocos encostados)</p>
+              <label>Carreador entre blocos (m)<input type="number" id="carreadorInterno" placeholder="ex: 10" step="0.5" min="0"></label>
+              <label>Carreador entre parcelas (m)<input type="number" id="carreadorParcela" placeholder="ex: 0" step="0.5" min="0"></label>
+              <label>Carreador de limite (m)<input type="number" id="carreadorLimite" placeholder="ex: 10" step="0.5" min="0"></label>
             </div>
           </details>
           <details class="accordion-section" name="config-accordion">
@@ -256,7 +271,11 @@
         </div>
       </div>
       <p class="error" id="error" hidden></p>
-      <div class="preview-body">
+      <div class="empty-state" id="emptyState" hidden>
+        <p class="empty-state-title">Nenhum croqui ainda</p>
+        <p class="empty-state-text">Preencha comprimento, largura (seção Parcela) e quantidade de blocos e parcelas por bloco (seção Layout) no menu ao lado para gerar o croqui.</p>
+      </div>
+      <div class="preview-body" id="previewBody">
         <div class="canvas-wrap">
           <svg id="svg" viewBox="0 0 1100 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Croqui do experimento"></svg>
         </div>
@@ -339,27 +358,37 @@
     return contrastBlack > contrastWhite ? '#141414' : '#ffffff';
   }
 
+  const CORE_FIELDS = ['comprimento','largura','blocos','linhas'];
+
   function readInputs(){
     const v = {};
-    numFields.forEach(id => v[id] = parseFloat($(id).value));
+    numFields.forEach(id => {
+      const raw = $(id).value;
+      v[id] = raw === '' ? null : parseFloat(raw);
+    });
     return v;
   }
 
   function computeGeometry(){
     const v = readInputs();
+    if(CORE_FIELDS.some(id => v[id] === null)) return { valid:false, empty:true };
+
     const errors = [];
     if(!(v.comprimento > 0)) errors.push('comprimento da parcela deve ser maior que zero');
     if(!(v.largura > 0)) errors.push('largura da parcela deve ser maior que zero');
     if(!(Number.isFinite(v.blocos) && v.blocos >= 1)) errors.push('quantidade de blocos deve ser ao menos 1');
     if(!(Number.isFinite(v.linhas) && v.linhas >= 1)) errors.push('parcelas por bloco deve ser ao menos 1');
-    if(!(v.carreadorInterno >= 0)) errors.push('carreador entre blocos não pode ser negativo');
-    if(!(v.carreadorParcela >= 0)) errors.push('carreador entre parcelas não pode ser negativo');
-    if(!(v.carreadorLimite >= 0)) errors.push('carreador de limite não pode ser negativo');
+    const cInternoRaw = v.carreadorInterno === null ? 0 : v.carreadorInterno;
+    const cParcelaRaw = v.carreadorParcela === null ? 0 : v.carreadorParcela;
+    const cLimiteRaw = v.carreadorLimite === null ? 0 : v.carreadorLimite;
+    if(!(cInternoRaw >= 0)) errors.push('carreador entre blocos não pode ser negativo');
+    if(!(cParcelaRaw >= 0)) errors.push('carreador entre parcelas não pode ser negativo');
+    if(!(cLimiteRaw >= 0)) errors.push('carreador de limite não pode ser negativo');
     if(errors.length) return { valid:false, errors };
 
     const blocos = Math.round(v.blocos), linhas = Math.round(v.linhas);
     const comprimento = v.comprimento, largura = v.largura;
-    const cInterno = v.carreadorInterno, cParcela = v.carreadorParcela, cLimite = v.carreadorLimite;
+    const cInterno = cInternoRaw, cParcela = cParcelaRaw, cLimite = cLimiteRaw;
     const passo = comprimento + cParcela; // vertical step between parcelas within a block-column
 
     // Blocks stand side by side as columns; parcelas stack top-to-bottom within each block.
@@ -732,12 +761,24 @@
   function render(){
     const g = computeGeometry();
     const errEl = $('error');
+    const emptyEl = $('emptyState');
+    const bodyEl = $('previewBody');
     if(!g.valid){
+      if(g.empty){
+        errEl.hidden = true;
+        emptyEl.hidden = false;
+        bodyEl.hidden = true;
+        return;
+      }
       errEl.hidden = false;
       errEl.textContent = 'Corrija os valores: ' + g.errors.join('; ') + '.';
+      emptyEl.hidden = true;
+      bodyEl.hidden = true;
       return;
     }
     errEl.hidden = true;
+    emptyEl.hidden = true;
+    bodyEl.hidden = false;
     ensureAssignment(g);
     updateTreatHint(g);
     drawSVG(g);
@@ -883,12 +924,13 @@ ${treatStyles}
 
   const sidebar = $('sidebar');
   const sidebarBody = $('sidebarBody');
-  sidebarBody.inert = true;
-  $('sidebarToggle').addEventListener('click', () => {
-    const expanded = sidebar.classList.toggle('expanded');
+  function setSidebarExpanded(expanded){
+    sidebar.classList.toggle('expanded', expanded);
     $('sidebarToggle').setAttribute('aria-expanded', String(expanded));
     sidebarBody.inert = !expanded;
-  });
+  }
+  setSidebarExpanded(false);
+  $('sidebarToggle').addEventListener('click', () => setSidebarExpanded(!sidebar.classList.contains('expanded')));
 
   // `details[name]` gives native single-open-at-a-time grouping, but Firefox doesn't
   // support it yet — enforce it in JS too so the accordion behaves the same everywhere.
@@ -900,6 +942,7 @@ ${treatStyles}
   });
 
   render();
+  if(CORE_FIELDS.some(id => $(id).value === '')) setSidebarExpanded(true);
 })();
 </script>
 </body>
