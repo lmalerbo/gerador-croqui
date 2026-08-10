@@ -288,7 +288,7 @@
 
 <script>
 (function(){
-  const CANVAS_W = 1100, MAX_BASE_H = 1000;
+  const CANVAS_W = 1100, MAX_BASE_H = 1000, TABLE_W = 300;
   const MARGIN = { left:24, right:130, top:36, bottom:100 };
 
   // Canto superior esquerdo do croqui, fixo em 21°10'31.84"S, 47°37'44.01"O (SIRGAS 2000 / UTM 23S).
@@ -468,12 +468,13 @@
 
     const treat = getTreatmentInfo(g);
     const legend = buildLegendSvg(g, treat, pal, baseH);
-    const table = buildTableSvg(g, pal, baseH + legend.height);
-    const totalH = baseH + legend.height + table.height;
+    const table = buildTableSvg(g, pal, CANVAS_W + 20, MARGIN.top, TABLE_W - 40);
+    const totalH = Math.max(baseH + legend.height, MARGIN.top + table.height + 20);
+    const totalW = CANVAS_W + TABLE_W;
 
     let s = '';
     s += `<style>.dimset{ --dimline:${pal.ink}; --dimlabelbg:${pal.bg}; --dimfont:${cssVar('--font-mono')}; }</style>`;
-    s += `<rect x="0" y="0" width="${CANVAS_W}" height="${totalH}" fill="${pal.bg}"></rect>`;
+    s += `<rect x="0" y="0" width="${totalW}" height="${totalH}" fill="${pal.bg}"></rect>`;
     s += arrowMarkerDefs();
     s += `<g class="dimset">`;
 
@@ -567,9 +568,8 @@
     s += `</g>`;
     s += legend.svg;
     s += table.svg;
-    $('svg').setAttribute('viewBox', `0 0 ${CANVAS_W} ${totalH}`);
+    $('svg').setAttribute('viewBox', `0 0 ${totalW} ${totalH}`);
     $('svg').innerHTML = s;
-    window.__canvasTotalH = totalH;
   }
 
   const MODE_LABEL = {
@@ -763,30 +763,48 @@
     return { svg: s, height: y - startY };
   }
 
-  // Same figures as the on-screen stat tiles, as a two-column table baked into the SVG so the
-  // PNG export carries them too — the HTML sidebar tiles never make it into that export.
-  function buildTableSvg(g, pal, startY){
+  // Wraps onto multiple lines by estimated monospace width — plain SVG <text> never wraps on
+  // its own, and "Delineamento" values like "DBC — Delineamento em Blocos Casualizados" are
+  // wider than the sidebar card.
+  function wrapText(text, maxWidthPx, fontSize){
+    const maxChars = Math.max(6, Math.floor(maxWidthPx / (fontSize*0.6)));
+    if(text.length <= maxChars) return [text];
+    const words = text.split(' ');
+    const lines = [];
+    let cur = '';
+    words.forEach(w => {
+      const candidate = cur ? cur+' '+w : w;
+      if(candidate.length > maxChars && cur){ lines.push(cur); cur = w; }
+      else cur = candidate;
+    });
+    if(cur) lines.push(cur);
+    return lines;
+  }
+
+  // Same figures as the on-screen stat tiles, as a stacked card in the SVG's right-hand column
+  // (beside the drawing, not under the legend) so the PNG export mirrors the on-screen layout —
+  // the HTML sidebar tiles alone never make it into that export.
+  function buildTableSvg(g, pal, startX, startY, width){
     let s = '';
-    let y = startY + 8;
-    s += `<line x1="24" y1="${y.toFixed(2)}" x2="${CANVAS_W-24}" y2="${y.toFixed(2)}" stroke="${pal.line}" stroke-width="1"></line>`;
-    y += 24;
-    s += `<text x="24" y="${y.toFixed(2)}" font-family="${cssVar('--font-mono')}" font-size="10" fill="${pal.ink}" opacity="0.6" letter-spacing="0.06em">DADOS DO EXPERIMENTO</text>`;
-    y += 22;
+    const pad = 12, lineH = 15, valueTopOffset = 34, tileBottomPad = 12;
+    const tiles = computeStatsTiles(g).map(([label, value]) => ({
+      label, lines: wrapText(value, width - pad*2, 13)
+    }));
+    const tileHeights = tiles.map(t => valueTopOffset + (t.lines.length-1)*lineH + tileBottomPad);
+    const cardH = tileHeights.reduce((a,h) => a+h, 0);
 
-    const leftPad = 24, labelW = 170, valueW = 380, rowH = 25, pad = 10;
-    const tiles = computeStatsTiles(g);
-    let x = leftPad;
-
-    tiles.forEach(([label, value]) => {
-      s += `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${labelW.toFixed(2)}" height="${rowH}" fill="${pal.panel}" stroke="${pal.line}" stroke-width="1"></rect>`;
-      s += `<text x="${(x+pad).toFixed(2)}" y="${(y+rowH/2+4).toFixed(2)}" font-family="${cssVar('--font-mono')}" font-size="11" font-weight="700" fill="${pal.ink}">${escapeXml(label)}</text>`;
-      s += `<rect x="${(x+labelW).toFixed(2)}" y="${y.toFixed(2)}" width="${valueW.toFixed(2)}" height="${rowH}" fill="${pal.bg}" stroke="${pal.line}" stroke-width="1"></rect>`;
-      s += `<text x="${(x+labelW+pad).toFixed(2)}" y="${(y+rowH/2+4).toFixed(2)}" font-family="${cssVar('--font-mono')}" font-size="11" fill="${pal.ink}">${escapeXml(value)}</text>`;
-      y += rowH;
+    s += `<rect x="${startX.toFixed(2)}" y="${startY.toFixed(2)}" width="${width.toFixed(2)}" height="${cardH.toFixed(2)}" rx="8" fill="${pal.panel}" stroke="${pal.line}" stroke-width="1"></rect>`;
+    let rowY = startY;
+    tiles.forEach((t, i) => {
+      if(i > 0) s += `<line x1="${startX.toFixed(2)}" y1="${rowY.toFixed(2)}" x2="${(startX+width).toFixed(2)}" y2="${rowY.toFixed(2)}" stroke="${pal.line}" stroke-width="1"></line>`;
+      s += `<text x="${(startX+pad).toFixed(2)}" y="${(rowY+18).toFixed(2)}" font-family="${cssVar('--font-mono')}" font-size="9" fill="${pal.ink}" opacity="0.6" letter-spacing="0.05em">${escapeXml(t.label.toUpperCase())}</text>`;
+      t.lines.forEach((line, li) => {
+        s += `<text x="${(startX+pad).toFixed(2)}" y="${(rowY+valueTopOffset+li*lineH).toFixed(2)}" font-family="${cssVar('--font-mono')}" font-size="13" font-weight="700" fill="${pal.ink}">${escapeXml(line)}</text>`;
+      });
+      rowY += tileHeights[i];
     });
 
-    y += 14;
-    return { svg: s, height: y - startY };
+    return { svg: s, height: cardH };
   }
 
   function render(){
@@ -829,19 +847,20 @@
     const g = window.__geom;
     if(!g) return;
     const EXPORT_SCALE = 2.5;
-    const totalH = window.__canvasTotalH || MAX_BASE_H;
     const svgEl = $('svg');
+    const vb = svgEl.viewBox.baseVal;
+    const w = vb.width, h = vb.height;
     const clone = svgEl.cloneNode(true);
     clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-    clone.setAttribute('width', CANVAS_W);
-    clone.setAttribute('height', totalH);
+    clone.setAttribute('width', w);
+    clone.setAttribute('height', h);
     const svgString = new XMLSerializer().serializeToString(clone);
     const svg64 = btoa(unescape(encodeURIComponent(svgString)));
     const img = new Image();
     img.onload = function(){
       const canvas = document.createElement('canvas');
-      canvas.width = CANVAS_W * EXPORT_SCALE;
-      canvas.height = totalH * EXPORT_SCALE;
+      canvas.width = w * EXPORT_SCALE;
+      canvas.height = h * EXPORT_SCALE;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       canvas.toBlob(blob => downloadBlob(blob, 'croqui.png'));
