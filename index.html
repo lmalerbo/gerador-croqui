@@ -583,13 +583,13 @@
     dbc: 'Cada tratamento sorteado uma vez por bloco (repetição).'
   };
 
-  function drawStats(g){
+  function computeStatsTiles(g){
     const areaTotal = g.totalW * g.totalH;
     const areaParcelas = g.blocos * g.linhas * g.comprimento * g.largura;
     const areaCarreadorInterno = g.internalRects.reduce((a,r)=>a+r.w*r.h, 0);
     const areaCarreadorParcela = g.parcelaGapRects.reduce((a,r)=>a+r.w*r.h, 0);
     const areaCarreadorLimite = areaTotal - g.innerW*g.innerH;
-    const tiles = [
+    return [
       ['Dimensão total', `${fmt(g.totalW)} × ${fmt(g.totalH)} m`],
       ['Área total', `${fmt(areaTotal/10000)} ha`],
       ['Parcelas', `${g.blocos*g.linhas} (${g.blocos}×${g.linhas})`],
@@ -598,7 +598,10 @@
       ['Área parcelas', `${fmt(areaParcelas,0)} m²`],
       ['Área carreadores', `${fmt(areaCarreadorInterno+areaCarreadorParcela+areaCarreadorLimite,0)} m²`]
     ];
-    $('stats').innerHTML = tiles.map(([label,value]) =>
+  }
+
+  function drawStats(g){
+    $('stats').innerHTML = computeStatsTiles(g).map(([label,value]) =>
       `<div class="stat-tile"><span class="stat-label">${escapeXml(label)}</span><span class="stat-value">${escapeXml(value)}</span></div>`
     ).join('');
   }
@@ -760,45 +763,26 @@
     return { svg: s, height: y - startY };
   }
 
-  // Bloco × posição matrix of the resulting treatment numbers — a printable record of the
-  // randomization, since color alone in the drawing is hard to transcribe or double-check.
+  // Same figures as the on-screen stat tiles, as a two-column table baked into the SVG so the
+  // PNG export carries them too — the HTML sidebar tiles never make it into that export.
   function buildTableSvg(g, pal, startY){
     let s = '';
     let y = startY + 8;
     s += `<line x1="24" y1="${y.toFixed(2)}" x2="${CANVAS_W-24}" y2="${y.toFixed(2)}" stroke="${pal.line}" stroke-width="1"></line>`;
     y += 24;
-    s += `<text x="24" y="${y.toFixed(2)}" font-family="${cssVar('--font-mono')}" font-size="10" fill="${pal.ink}" opacity="0.6" letter-spacing="0.06em">TABELA DE CASUALIZAÇÃO</text>`;
+    s += `<text x="24" y="${y.toFixed(2)}" font-family="${cssVar('--font-mono')}" font-size="10" fill="${pal.ink}" opacity="0.6" letter-spacing="0.06em">DADOS DO EXPERIMENTO</text>`;
     y += 22;
 
-    const leftPad = 24, rightEdge = CANVAS_W - 24;
-    const labelW = 60, cellH = 26, headerH = 24;
-    const cellW = Math.max(26, Math.min(70, (rightEdge - leftPad - labelW) / g.linhas));
-
+    const leftPad = 24, labelW = 170, valueW = 380, rowH = 25, pad = 10;
+    const tiles = computeStatsTiles(g);
     let x = leftPad;
-    s += `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${labelW.toFixed(2)}" height="${headerH}" fill="${pal.panel}" stroke="${pal.line}" stroke-width="1"></rect>`;
-    s += `<text x="${(x+labelW/2).toFixed(2)}" y="${(y+headerH/2+4).toFixed(2)}" font-family="${cssVar('--font-mono')}" font-size="10" font-weight="700" fill="${pal.ink}" text-anchor="middle">BLOCO</text>`;
-    x += labelW;
-    for(let j = 0; j < g.linhas; j++){
-      s += `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${cellW.toFixed(2)}" height="${headerH}" fill="${pal.panel}" stroke="${pal.line}" stroke-width="1"></rect>`;
-      s += `<text x="${(x+cellW/2).toFixed(2)}" y="${(y+headerH/2+4).toFixed(2)}" font-family="${cssVar('--font-mono')}" font-size="10" font-weight="700" fill="${pal.ink}" text-anchor="middle">${j+1}</text>`;
-      x += cellW;
-    }
-    y += headerH;
 
-    g.blockRects.forEach(b => {
-      x = leftPad;
-      s += `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${labelW.toFixed(2)}" height="${cellH}" fill="${pal.bg}" stroke="${pal.line}" stroke-width="1"></rect>`;
-      s += `<text x="${(x+labelW/2).toFixed(2)}" y="${(y+cellH/2+4).toFixed(2)}" font-family="${cssVar('--font-display')}" font-size="11" font-weight="700" fill="${pal.ink}" text-anchor="middle">B${b.index}</text>`;
-      x += labelW;
-      for(let j = 0; j < g.linhas; j++){
-        const num = treatmentNumber(g, b.index, j);
-        const color = treatColor(num);
-        const textColor = textOn(color);
-        s += `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${cellW.toFixed(2)}" height="${cellH}" fill="${color}" stroke="${pal.bg}" stroke-width="1"></rect>`;
-        s += `<text x="${(x+cellW/2).toFixed(2)}" y="${(y+cellH/2+4).toFixed(2)}" font-family="${cssVar('--font-mono')}" font-size="11" fill="${textColor}" text-anchor="middle">${num}</text>`;
-        x += cellW;
-      }
-      y += cellH;
+    tiles.forEach(([label, value]) => {
+      s += `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${labelW.toFixed(2)}" height="${rowH}" fill="${pal.panel}" stroke="${pal.line}" stroke-width="1"></rect>`;
+      s += `<text x="${(x+pad).toFixed(2)}" y="${(y+rowH/2+4).toFixed(2)}" font-family="${cssVar('--font-mono')}" font-size="11" font-weight="700" fill="${pal.ink}">${escapeXml(label)}</text>`;
+      s += `<rect x="${(x+labelW).toFixed(2)}" y="${y.toFixed(2)}" width="${valueW.toFixed(2)}" height="${rowH}" fill="${pal.bg}" stroke="${pal.line}" stroke-width="1"></rect>`;
+      s += `<text x="${(x+labelW+pad).toFixed(2)}" y="${(y+rowH/2+4).toFixed(2)}" font-family="${cssVar('--font-mono')}" font-size="11" fill="${pal.ink}">${escapeXml(value)}</text>`;
+      y += rowH;
     });
 
     y += 14;
