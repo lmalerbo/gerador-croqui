@@ -239,8 +239,8 @@
             <summary class="accordion-header">Carreadores<span class="accordion-chevron">⌄</span></summary>
             <div class="accordion-body">
               <p class="accordion-hint">Em branco = 0 m (parcelas/blocos encostados)</p>
-              <label>Carreador entre blocos (m)<input type="number" id="carreadorInterno" placeholder="ex: 10" step="0.5" min="0"></label>
-              <label>Carreador entre parcelas (m)<input type="number" id="carreadorParcela" placeholder="ex: 0" step="0.5" min="0"></label>
+              <label>Carreador (colunas) (m)<input type="number" id="carreadorInterno" placeholder="ex: 10" step="0.5" min="0"></label>
+              <label>Carreador (linhas) (m)<input type="number" id="carreadorParcela" placeholder="ex: 0" step="0.5" min="0"></label>
               <label>Carreador de limite (m)<input type="number" id="carreadorLimite" placeholder="ex: 10" step="0.5" min="0"></label>
             </div>
           </details>
@@ -381,8 +381,8 @@
     const cInternoRaw = v.carreadorInterno === null ? 0 : v.carreadorInterno;
     const cParcelaRaw = v.carreadorParcela === null ? 0 : v.carreadorParcela;
     const cLimiteRaw = v.carreadorLimite === null ? 0 : v.carreadorLimite;
-    if(!(cInternoRaw >= 0)) errors.push('carreador entre blocos não pode ser negativo');
-    if(!(cParcelaRaw >= 0)) errors.push('carreador entre parcelas não pode ser negativo');
+    if(!(cInternoRaw >= 0)) errors.push('carreador (colunas) não pode ser negativo');
+    if(!(cParcelaRaw >= 0)) errors.push('carreador (linhas) não pode ser negativo');
     if(!(cLimiteRaw >= 0)) errors.push('carreador de limite não pode ser negativo');
     if(errors.length) return { valid:false, errors };
 
@@ -744,7 +744,7 @@
     y += 20;
 
     const carreadorSwatches = [
-      { color: pal.tan, opacity: 1, label: g.cParcela > 0 ? 'Carreador entre blocos/parcelas' : 'Carreador entre blocos' },
+      { color: pal.tan, opacity: 1, label: g.cParcela > 0 ? 'Carreador (colunas/linhas)' : 'Carreador (colunas)' },
       { color: pal.tan, opacity: 0.55, label: 'Carreador de limite' }
     ];
     let cx = leftPad;
@@ -873,7 +873,7 @@
     let internos = '';
     g.internalRects.forEach((r,i) => {
       const coords = ringCoords(toLL, r.x, r.y, r.w, r.h);
-      internos += kmlPlacemark(`Carreador entre blocos ${i+1}`, 'carreadorInternoStyle', coords,
+      internos += kmlPlacemark(`Carreador (colunas) ${i+1}`, 'carreadorInternoStyle', coords,
         `Largura: ${fmt(g.cInterno)} m | Área: ${fmt(r.w*r.h,0)} m²`);
     });
 
@@ -881,7 +881,7 @@
     g.parcelaGapRects.forEach((r,i) => {
       const gapIndex = (i % (g.linhas - 1)) + 1;
       const coords = ringCoords(toLL, r.x, r.y, r.w, r.h);
-      entreParcelas += kmlPlacemark(`Carreador entre parcelas - Bloco ${r.block} - ${gapIndex}`, 'carreadorInternoStyle', coords,
+      entreParcelas += kmlPlacemark(`Carreador (linhas) - Bloco ${r.block} - ${gapIndex}`, 'carreadorInternoStyle', coords,
         `Largura: ${fmt(g.cParcela)} m | Área: ${fmt(r.w*r.h,0)} m²`);
     });
 
@@ -900,8 +900,8 @@ ${treatStyles}
 <Style id="carreadorInternoStyle"><LineStyle><color>${hexToKmlColor(pal.tan,'FF')}</color><width>1</width></LineStyle><PolyStyle><color>${hexToKmlColor(pal.tan,'80')}</color></PolyStyle></Style>
 <Style id="carreadorLimiteStyle"><LineStyle><color>${hexToKmlColor(pal.blue,'FF')}</color><width>1</width></LineStyle><PolyStyle><color>${hexToKmlColor(pal.blue,'80')}</color></PolyStyle></Style>
 <Folder><name>Parcelas</name>${parcelas}</Folder>
-<Folder><name>Carreadores entre blocos</name>${internos}</Folder>
-<Folder><name>Carreadores entre parcelas</name>${entreParcelas}</Folder>
+<Folder><name>Carreadores (colunas)</name>${internos}</Folder>
+<Folder><name>Carreadores (linhas)</name>${entreParcelas}</Folder>
 <Folder><name>Carreador de limite</name>${limite}</Folder>
 </Document>
 </kml>`;
