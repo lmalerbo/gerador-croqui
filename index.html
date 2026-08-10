@@ -4,53 +4,25 @@
 <meta charset="UTF-8">
 <title>Gerador de Croqui — Layout de Experimentos</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3QgeD0iMiIgeT0iMiIgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiByeD0iMTQiIGZpbGw9IiNGRkZGRkYiIHN0cm9rZT0iIzFCMjQzMCIgc3Ryb2tlLXdpZHRoPSIzIi8+PHJlY3QgeD0iMTMiIHk9IjE2IiB3aWR0aD0iMTAiIGhlaWdodD0iMzIiIHJ4PSIyIiBmaWxsPSIjMmE3OGQ2Ii8+PHJlY3QgeD0iMjciIHk9IjE2IiB3aWR0aD0iMTAiIGhlaWdodD0iMzIiIHJ4PSIyIiBmaWxsPSIjZWI2ODM0Ii8+PHJlY3QgeD0iNDEiIHk9IjE2IiB3aWR0aD0iMTAiIGhlaWdodD0iMzIiIHJ4PSIyIiBmaWxsPSIjMWJhZjdhIi8+PC9zdmc+">
 <style>
   :root{
-    --bg:#F3F0E3;
-    --panel:#FBF9F1;
-    --panel-2:#F1EDDD;
-    --ink:#242719;
-    --ink-muted:#6b6b57;
-    --line:#D9D3BB;
+    --bg:#F4F6F9;
+    --panel:#FFFFFF;
+    --panel-2:#EEF1F5;
+    --ink:#1B2430;
+    --ink-muted:#5B6472;
+    --line:#DDE2EA;
     --tan:#C98A3C;
     --tan-ink:#5c3d16;
-    --blue:#3E6B8A;
-    --blue-ink:#1f3a4b;
-    --danger:#a33d2d;
+    --blue:#2454CF;
+    --blue-ink:#0F2E86;
+    --danger:#C0392B;
     --croqui-bg:#FFFFFF;
-    --shadow: 0 1px 2px rgba(36,39,25,.06), 0 6px 20px rgba(36,39,25,.06);
-    --font-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', serif;
+    --shadow: 0 1px 2px rgba(20,30,50,.06), 0 8px 24px rgba(20,30,50,.08);
+    --font-display: 'Segoe UI Semibold', 'Segoe UI', system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
     --font-body: 'Segoe UI', system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
     --font-mono: 'Cascadia Code', 'Consolas', 'SFMono-Regular', Menlo, Monaco, monospace;
-  }
-  @media (prefers-color-scheme: dark){
-    :root{
-      --bg:#14170F;
-      --panel:#1B1F14;
-      --panel-2:#20261A;
-      --ink:#ECE7D3;
-      --ink-muted:#a5a48c;
-      --line:#3A3F2A;
-      --tan:#E0A855;
-      --tan-ink:#3a2a10;
-      --blue:#7BB2D6;
-      --blue-ink:#e8f3fa;
-      --danger:#e08672;
-      --croqui-bg:#20261A;
-      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
-    }
-  }
-  :root[data-theme="dark"]{
-    --bg:#14170F; --panel:#1B1F14; --panel-2:#20261A; --ink:#ECE7D3; --ink-muted:#a5a48c;
-    --line:#3A3F2A; --tan:#E0A855; --tan-ink:#3a2a10;
-    --blue:#7BB2D6; --blue-ink:#e8f3fa; --danger:#e08672; --croqui-bg:#20261A;
-    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
-  }
-  :root[data-theme="light"]{
-    --bg:#F3F0E3; --panel:#FBF9F1; --panel-2:#F1EDDD; --ink:#242719; --ink-muted:#6b6b57;
-    --line:#D9D3BB; --tan:#C98A3C; --tan-ink:#5c3d16;
-    --blue:#3E6B8A; --blue-ink:#1f3a4b; --danger:#a33d2d; --croqui-bg:#FFFFFF;
-    --shadow: 0 1px 2px rgba(36,39,25,.06), 0 6px 20px rgba(36,39,25,.06);
   }
 
   *{ box-sizing:border-box; }
@@ -75,13 +47,9 @@
   }
 
   .layout{
-    display:grid;
-    grid-template-columns:300px 1fr;
+    display:flex;
     gap:20px;
-    align-items:start;
-  }
-  @media (max-width: 880px){
-    .layout{ grid-template-columns:1fr; }
+    align-items:flex-start;
   }
 
   .panel{
@@ -90,7 +58,27 @@
     border-radius:10px;
     box-shadow:var(--shadow);
   }
-  .form-panel{ padding:18px 18px 8px; }
+  .form-panel{
+    flex-shrink:0; width:52px; overflow:hidden;
+    transition:width .22s ease;
+  }
+  .form-panel.expanded{ width:300px; }
+  .sidebar-toggle{
+    display:flex; align-items:center; justify-content:center; gap:10px; width:52px; box-sizing:border-box;
+    padding:14px; background:none; border:none; border-bottom:1px solid var(--line);
+    border-radius:0; cursor:pointer; color:var(--ink);
+    font-family:var(--font-body); font-weight:600; font-size:.86rem;
+  }
+  .form-panel.expanded .sidebar-toggle{ width:300px; justify-content:flex-start; padding:14px 16px; }
+  .sidebar-toggle:hover{ background:var(--panel-2); }
+  .sidebar-toggle-icon{
+    font-size:1.05rem; line-height:1; flex-shrink:0; width:20px; text-align:center;
+  }
+  .sidebar-toggle-label{ display:none; white-space:nowrap; }
+  .form-panel.expanded .sidebar-toggle-label{ display:inline; }
+  .sidebar-body{ display:none; width:300px; box-sizing:border-box; padding:4px 18px 8px; }
+  .form-panel.expanded .sidebar-body{ display:block; }
+  .preview-panel{ flex:1; min-width:0; }
 
   fieldset{
     border:none;
@@ -184,36 +172,42 @@
   </header>
 
   <main class="layout">
-    <aside class="panel form-panel">
-      <form id="form">
-        <fieldset>
-          <legend>Parcela</legend>
-          <label>Comprimento (m)<input type="number" id="comprimento" value="12" step="0.5" min="0.1"></label>
-          <label>Largura (m)<input type="number" id="largura" value="30" step="0.5" min="0.1"></label>
-        </fieldset>
-        <fieldset>
-          <legend>Layout</legend>
-          <label>Qtd. de blocos (colunas)<input type="number" id="blocos" value="5" step="1" min="1"></label>
-          <label>Parcelas por bloco (linhas)<input type="number" id="linhas" value="5" step="1" min="1"></label>
-        </fieldset>
-        <fieldset>
-          <legend>Carreadores<span class="hint">carreador entre parcelas com 0 m = parcelas encostadas</span></legend>
-          <label>Carreador entre blocos (m)<input type="number" id="carreadorInterno" value="10" step="0.5" min="0"></label>
-          <label>Carreador entre parcelas (m)<input type="number" id="carreadorParcela" value="0" step="0.5" min="0"></label>
-          <label>Carreador de limite (m)<input type="number" id="carreadorLimite" value="10" step="0.5" min="0"></label>
-        </fieldset>
-        <fieldset>
-          <legend>Delineamento<span class="hint">tratamento = mesmo número repetido entre blocos</span></legend>
-          <label class="choice-row"><input type="radio" name="delineamento" value="sequencial" checked> Sequencial (sem sorteio)</label>
-          <label class="choice-row"><input type="radio" name="delineamento" value="dic"> DIC — inteiramente casualizado</label>
-          <label class="choice-row"><input type="radio" name="delineamento" value="dbc"> DBC — blocos casualizados</label>
-          <button type="button" id="btnReshuffle" hidden>Sortear novamente</button>
-          <label class="choice-row" id="avoidAdjacentRow" hidden><input type="checkbox" id="avoidAdjacent"> Evitar mesmo tratamento em blocos vizinhos (mesma linha)</label>
-          <label class="stack-label">Nomes dos tratamentos (opcional)<span class="hint" id="treatHint"></span>
-            <textarea id="treatNames" rows="4" placeholder="Um por linha, ex.:&#10;Testemunha&#10;Dose 1&#10;Dose 2"></textarea>
-          </label>
-        </fieldset>
-      </form>
+    <aside class="panel form-panel" id="sidebar">
+      <button type="button" id="sidebarToggle" class="sidebar-toggle" aria-expanded="false" aria-controls="sidebarBody">
+        <span class="sidebar-toggle-icon">☰</span>
+        <span class="sidebar-toggle-label">Configurações</span>
+      </button>
+      <div class="sidebar-body" id="sidebarBody">
+        <form id="form">
+          <fieldset>
+            <legend>Parcela</legend>
+            <label>Comprimento (m)<input type="number" id="comprimento" value="12" step="0.5" min="0.1"></label>
+            <label>Largura (m)<input type="number" id="largura" value="30" step="0.5" min="0.1"></label>
+          </fieldset>
+          <fieldset>
+            <legend>Layout</legend>
+            <label>Qtd. de blocos (colunas)<input type="number" id="blocos" value="5" step="1" min="1"></label>
+            <label>Parcelas por bloco (linhas)<input type="number" id="linhas" value="5" step="1" min="1"></label>
+          </fieldset>
+          <fieldset>
+            <legend>Carreadores<span class="hint">carreador entre parcelas com 0 m = parcelas encostadas</span></legend>
+            <label>Carreador entre blocos (m)<input type="number" id="carreadorInterno" value="10" step="0.5" min="0"></label>
+            <label>Carreador entre parcelas (m)<input type="number" id="carreadorParcela" value="0" step="0.5" min="0"></label>
+            <label>Carreador de limite (m)<input type="number" id="carreadorLimite" value="10" step="0.5" min="0"></label>
+          </fieldset>
+          <fieldset>
+            <legend>Delineamento<span class="hint">tratamento = mesmo número repetido entre blocos</span></legend>
+            <label class="choice-row"><input type="radio" name="delineamento" value="sequencial" checked> Sequencial (sem sorteio)</label>
+            <label class="choice-row"><input type="radio" name="delineamento" value="dic"> DIC — inteiramente casualizado</label>
+            <label class="choice-row"><input type="radio" name="delineamento" value="dbc"> DBC — blocos casualizados</label>
+            <button type="button" id="btnReshuffle" hidden>Sortear novamente</button>
+            <label class="choice-row" id="avoidAdjacentRow" hidden><input type="checkbox" id="avoidAdjacent"> Evitar mesmo tratamento em blocos vizinhos (mesma linha)</label>
+            <label class="stack-label">Nomes dos tratamentos (aparecem só na legenda)<span class="hint" id="treatHint"></span>
+              <textarea id="treatNames" rows="4" placeholder="Um por linha, ex.:&#10;Testemunha&#10;Dose 1&#10;Dose 2"></textarea>
+            </label>
+          </fieldset>
+        </form>
+      </div>
     </aside>
 
     <section class="panel preview-panel">
@@ -284,23 +278,25 @@
     return String(s).replace(/[<>&'"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;',"'":'&apos;','"':'&quot;'}[c]));
   }
 
-  // Validated categorical palette (dataviz skill reference set): colorblind-safe adjacent pairs,
-  // tuned separately for each surface rather than a naive light/dark inversion.
-  const TREAT_PALETTE = {
-    light: ['#2a78d6','#eb6834','#1baf7a','#eda100','#e87ba4','#008300','#4a3aa7','#e34948'],
-    dark:  ['#3987e5','#d95926','#199e70','#c98500','#d55181','#008300','#9085e9','#e66767']
-  };
-
-  function isDarkTheme(){
-    const attr = document.documentElement.getAttribute('data-theme');
-    if(attr === 'dark') return true;
-    if(attr === 'light') return false;
-    return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  }
+  // Validated categorical palette (dataviz skill reference set): colorblind-safe adjacent pairs.
+  const TREAT_PALETTE = ['#2a78d6','#eb6834','#1baf7a','#eda100','#e87ba4','#008300','#4a3aa7','#e34948'];
 
   function treatColor(num){
-    const arr = isDarkTheme() ? TREAT_PALETTE.dark : TREAT_PALETTE.light;
-    return arr[(num-1) % arr.length];
+    return TREAT_PALETTE[(num-1) % TREAT_PALETTE.length];
+  }
+
+  function relLuminance(hex){
+    hex = hex.replace('#','');
+    const [r,g,b] = [0,2,4].map(i => parseInt(hex.slice(i,i+2),16)/255);
+    const lin = c => c <= 0.03928 ? c/12.92 : Math.pow((c+0.055)/1.055, 2.4);
+    return 0.2126*lin(r) + 0.7152*lin(g) + 0.0722*lin(b);
+  }
+
+  function textOn(hex){
+    const L = relLuminance(hex);
+    const contrastWhite = (1.05) / (L + 0.05);
+    const contrastBlack = (L + 0.05) / 0.05;
+    return contrastBlack > contrastWhite ? '#141414' : '#ffffff';
   }
 
   function readInputs(){
@@ -414,11 +410,16 @@
     g.blockRects.forEach(b => {
       const bx = X(b.x), by = Y(b.y), bw = b.w*scale, bh = b.h*scale;
       const colW = g.comprimento*scale;
+      const showNums = g.blocos * g.linhas <= 80;
       for(let j = 0; j < g.linhas; j++){
         const num = treatmentNumber(g, b.index, j);
         const color = treatColor(num);
         const rx = X(b.x + j*g.passo);
         s += `<rect x="${rx.toFixed(2)}" y="${by.toFixed(2)}" width="${colW.toFixed(2)}" height="${bh.toFixed(2)}" fill="${color}" stroke="${pal.bg}" stroke-width="1"></rect>`;
+        if(showNums){
+          const textColor = textOn(color);
+          s += `<text x="${(rx+colW/2).toFixed(2)}" y="${(by+bh/2+4).toFixed(2)}" font-family="${cssVar('--font-mono')}" font-size="12" fill="${textColor}" text-anchor="middle" opacity="0.95">${num}</text>`;
+        }
       }
       s += `<rect x="${bx.toFixed(2)}" y="${by.toFixed(2)}" width="${bw.toFixed(2)}" height="${bh.toFixed(2)}" fill="none" stroke="${pal.ink}" stroke-width="1.4"></rect>`;
       const labelX = X(g.totalW) + 12;
@@ -830,10 +831,15 @@ ${treatStyles}
     if(window.__geom) reshuffle(window.__geom);
     render();
   });
-  if(window.matchMedia){
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render);
-  }
-  new MutationObserver(render).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
+
+  const sidebar = $('sidebar');
+  const sidebarBody = $('sidebarBody');
+  sidebarBody.inert = true;
+  $('sidebarToggle').addEventListener('click', () => {
+    const expanded = sidebar.classList.toggle('expanded');
+    $('sidebarToggle').setAttribute('aria-expanded', String(expanded));
+    sidebarBody.inert = !expanded;
+  });
 
   render();
 })();
