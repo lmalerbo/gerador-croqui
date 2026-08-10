@@ -17,6 +17,7 @@
     --blue:#3E6B8A;
     --blue-ink:#1f3a4b;
     --danger:#a33d2d;
+    --croqui-bg:#FFFFFF;
     --shadow: 0 1px 2px rgba(36,39,25,.06), 0 6px 20px rgba(36,39,25,.06);
     --font-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', serif;
     --font-body: 'Segoe UI', system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
@@ -35,19 +36,20 @@
       --blue:#7BB2D6;
       --blue-ink:#e8f3fa;
       --danger:#e08672;
+      --croqui-bg:#20261A;
       --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
     }
   }
   :root[data-theme="dark"]{
     --bg:#14170F; --panel:#1B1F14; --panel-2:#20261A; --ink:#ECE7D3; --ink-muted:#a5a48c;
     --line:#3A3F2A; --tan:#E0A855; --tan-ink:#3a2a10;
-    --blue:#7BB2D6; --blue-ink:#e8f3fa; --danger:#e08672;
+    --blue:#7BB2D6; --blue-ink:#e8f3fa; --danger:#e08672; --croqui-bg:#20261A;
     --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
   }
   :root[data-theme="light"]{
     --bg:#F3F0E3; --panel:#FBF9F1; --panel-2:#F1EDDD; --ink:#242719; --ink-muted:#6b6b57;
     --line:#D9D3BB; --tan:#C98A3C; --tan-ink:#5c3d16;
-    --blue:#3E6B8A; --blue-ink:#1f3a4b; --danger:#a33d2d;
+    --blue:#3E6B8A; --blue-ink:#1f3a4b; --danger:#a33d2d; --croqui-bg:#FFFFFF;
     --shadow: 0 1px 2px rgba(36,39,25,.06), 0 6px 20px rgba(36,39,25,.06);
   }
 
@@ -162,9 +164,9 @@
 
   .canvas-wrap{
     border:1px solid var(--line); border-radius:8px; overflow:auto;
-    background:var(--panel-2);
+    background:var(--croqui-bg);
   }
-  #svg{ width:100%; height:auto; display:block; min-width:560px; }
+  #svg{ width:100%; height:auto; display:block; min-width:360px; max-width:520px; margin:0 auto; }
 
   .error{
     color:var(--danger); font-size:.82rem; margin:0 0 10px;
@@ -233,8 +235,8 @@
 
 <script>
 (function(){
-  const CANVAS_W = 1100, BASE_H = 720;
-  const MARGIN = { left:132, right:130, top:80, bottom:64 };
+  const CANVAS_W = 760, BASE_H = 1080;
+  const MARGIN = { left:130, right:90, top:100, bottom:32 };
 
   // Canto superior esquerdo do croqui, fixo em 21°10'31.84"S, 47°37'44.01"O (SIRGAS 2000 / UTM 23S).
   // Pré-convertido para UTM (GRS80/WGS84 — as duas coincidem em poucos mm, irrelevante nesta escala)
@@ -301,27 +303,6 @@
     return arr[(num-1) % arr.length];
   }
 
-  function relLuminance(hex){
-    hex = hex.replace('#','');
-    const [r,g,b] = [0,2,4].map(i => parseInt(hex.slice(i,i+2),16)/255);
-    const lin = c => c <= 0.03928 ? c/12.92 : Math.pow((c+0.055)/1.055, 2.4);
-    return 0.2126*lin(r) + 0.7152*lin(g) + 0.0722*lin(b);
-  }
-
-  function textOn(hex){
-    const L = relLuminance(hex);
-    const contrastWhite = (1.05) / (L + 0.05);
-    const contrastBlack = (L + 0.05) / 0.05;
-    return contrastBlack > contrastWhite ? '#141414' : '#ffffff';
-  }
-
-  function fitText(text, maxWidthPx, fontSize){
-    const charW = fontSize * 0.62;
-    const maxChars = Math.max(1, Math.floor(maxWidthPx / charW));
-    if(text.length <= maxChars) return text;
-    return maxChars <= 1 ? text.slice(0,1) : text.slice(0, maxChars-1) + '…';
-  }
-
   function readInputs(){
     const v = {};
     numFields.forEach(id => v[id] = parseFloat($(id).value));
@@ -343,26 +324,27 @@
     const blocos = Math.round(v.blocos), linhas = Math.round(v.linhas);
     const comprimento = v.comprimento, largura = v.largura;
     const cInterno = v.carreadorInterno, cParcela = v.carreadorParcela, cLimite = v.carreadorLimite;
-    const passo = comprimento + cParcela;
+    const passo = comprimento + cParcela; // horizontal step between parcelas within a block-row
 
-    const innerW = blocos * largura + (blocos - 1) * cInterno;
-    const innerH = linhas * comprimento + (linhas - 1) * cParcela;
+    // Blocks stack as rows (vertical axis); parcelas run left-to-right within each block-row.
+    const innerW = linhas * comprimento + (linhas - 1) * cParcela;
+    const innerH = blocos * largura + (blocos - 1) * cInterno;
     const totalW = innerW + 2 * cLimite;
     const totalH = innerH + 2 * cLimite;
 
     const blockRects = [];
     for(let i = 0; i < blocos; i++){
-      blockRects.push({ x: cLimite + i * (largura + cInterno), y: cLimite, w: largura, h: innerH, index:i+1 });
+      blockRects.push({ x: cLimite, y: cLimite + i * (largura + cInterno), w: innerW, h: largura, index:i+1 });
     }
     const internalRects = [];
     for(let i = 0; i < blocos - 1; i++){
-      internalRects.push({ x: blockRects[i].x + largura, y: cLimite, w: cInterno, h: innerH });
+      internalRects.push({ x: cLimite, y: blockRects[i].y + largura, w: innerW, h: cInterno });
     }
     const parcelaGapRects = [];
     if(cParcela > 0){
       blockRects.forEach(b => {
         for(let j = 0; j < linhas - 1; j++){
-          parcelaGapRects.push({ x: b.x, y: b.y + j*passo + comprimento, w: largura, h: cParcela, block: b.index });
+          parcelaGapRects.push({ x: b.x + j*passo + comprimento, y: b.y, w: cParcela, h: largura, block: b.index });
         }
       });
     }
@@ -409,7 +391,7 @@
     const Y = v => originY + v * scale;
 
     const pal = {
-      bg: cssVar('--panel-2'), panel: cssVar('--panel'), ink: cssVar('--ink'),
+      bg: cssVar('--croqui-bg'), panel: cssVar('--panel'), ink: cssVar('--ink'),
       line: cssVar('--line'), tan: cssVar('--tan'), blue: cssVar('--blue')
     };
 
@@ -428,92 +410,81 @@
     }
     s += `<rect x="${X(g.cLimite)}" y="${Y(g.cLimite)}" width="${(g.innerW*scale).toFixed(2)}" height="${(g.innerH*scale).toFixed(2)}" fill="${pal.tan}"></rect>`;
 
+    // blocks are horizontal bands stacked top-to-bottom; parcelas run left-to-right within each
     g.blockRects.forEach(b => {
       const bx = X(b.x), by = Y(b.y), bw = b.w*scale, bh = b.h*scale;
-      const rowH = g.comprimento*scale;
+      const colW = g.comprimento*scale;
       for(let j = 0; j < g.linhas; j++){
         const num = treatmentNumber(g, b.index, j);
         const color = treatColor(num);
-        const ry = Y(b.y + j*g.passo);
-        s += `<rect x="${bx.toFixed(2)}" y="${ry.toFixed(2)}" width="${bw.toFixed(2)}" height="${rowH.toFixed(2)}" fill="${color}" stroke="${pal.bg}" stroke-width="1"></rect>`;
+        const rx = X(b.x + j*g.passo);
+        s += `<rect x="${rx.toFixed(2)}" y="${by.toFixed(2)}" width="${colW.toFixed(2)}" height="${bh.toFixed(2)}" fill="${color}" stroke="${pal.bg}" stroke-width="1"></rect>`;
       }
       s += `<rect x="${bx.toFixed(2)}" y="${by.toFixed(2)}" width="${bw.toFixed(2)}" height="${bh.toFixed(2)}" fill="none" stroke="${pal.ink}" stroke-width="1.4"></rect>`;
-      const showNums = g.blocos * g.linhas <= 60;
-      if(showNums){
-        for(let j = 0; j < g.linhas; j++){
-          const num = treatmentNumber(g, b.index, j);
-          const color = treatColor(num);
-          const textColor = textOn(color);
-          const cx = bx + bw/2;
-          const cy = Y(b.y + j*g.passo + g.comprimento/2);
-          if(treat.isCustom && rowH >= 34){
-            const name = fitText(treat.names[num-1], bw-10, 10);
-            s += `<text x="${cx.toFixed(2)}" y="${(cy-2).toFixed(2)}" font-family="${cssVar('--font-mono')}" font-size="12" font-weight="700" fill="${textColor}" text-anchor="middle">${num}</text>`;
-            s += `<text x="${cx.toFixed(2)}" y="${(cy+11).toFixed(2)}" font-family="${cssVar('--font-mono')}" font-size="10" fill="${textColor}" text-anchor="middle" opacity="0.92">${escapeXml(name)}</text>`;
-            continue;
-          }
-          s += `<text x="${cx.toFixed(2)}" y="${(cy+4).toFixed(2)}" font-family="${cssVar('--font-mono')}" font-size="12" fill="${textColor}" text-anchor="middle" opacity="0.92">${num}</text>`;
-        }
-      }
-      s += `<text x="${(bx+bw/2).toFixed(2)}" y="${(by-8).toFixed(2)}" font-family="${cssVar('--font-display')}" font-size="15" font-weight="700" fill="${pal.ink}" text-anchor="middle">B${b.index}</text>`;
+      const labelX = X(g.totalW) + 12;
+      s += `<text x="${labelX.toFixed(2)}" y="${(by+bh/2+5).toFixed(2)}" font-family="${cssVar('--font-display')}" font-size="14" font-weight="700" fill="${pal.ink}" text-anchor="start">B${b.index}</text>`;
     });
 
-    // overall width (top) and height (left) dimensions, spanning the inner grid — mirrors the reference sketch
-    const topY = Y(g.cLimite) - 46;
-    s += `<line x1="${X(g.cLimite)}" y1="${(Y(g.cLimite)-6).toFixed(2)}" x2="${X(g.cLimite)}" y2="${(topY-4).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.8"></line>`;
-    s += `<line x1="${X(g.cLimite+g.innerW)}" y1="${(Y(g.cLimite)-6).toFixed(2)}" x2="${X(g.cLimite+g.innerW)}" y2="${(topY-4).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.8"></line>`;
-    s += `<line x1="${X(g.cLimite)}" y1="${topY.toFixed(2)}" x2="${X(g.cLimite+g.innerW)}" y2="${topY.toFixed(2)}" stroke="${pal.ink}" stroke-width="1" marker-start="url(#dimArrow)" marker-end="url(#dimArrow)"></line>`;
-    s += dimLabel((X(g.cLimite)+X(g.cLimite+g.innerW))/2, topY, fmt(g.innerW)+' m', 'middle');
+    // top margin: the three horizontal-direction measurements, stacked outermost to innermost
+    const topY1 = Y(g.cLimite) - 78;
+    s += `<line x1="${X(g.cLimite)}" y1="${(Y(g.cLimite)-6).toFixed(2)}" x2="${X(g.cLimite)}" y2="${(topY1-4).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.8"></line>`;
+    s += `<line x1="${X(g.cLimite+g.innerW)}" y1="${(Y(g.cLimite)-6).toFixed(2)}" x2="${X(g.cLimite+g.innerW)}" y2="${(topY1-4).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.8"></line>`;
+    s += `<line x1="${X(g.cLimite)}" y1="${topY1.toFixed(2)}" x2="${X(g.cLimite+g.innerW)}" y2="${topY1.toFixed(2)}" stroke="${pal.ink}" stroke-width="1" marker-start="url(#dimArrow)" marker-end="url(#dimArrow)"></line>`;
+    s += dimLabel((X(g.cLimite)+X(g.cLimite+g.innerW))/2, topY1, fmt(g.innerW)+' m', 'middle');
 
-    const leftX = X(g.cLimite) - 92;
-    s += `<line x1="${(X(g.cLimite)-6).toFixed(2)}" y1="${Y(g.cLimite).toFixed(2)}" x2="${(leftX-4).toFixed(2)}" y2="${Y(g.cLimite).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.8"></line>`;
-    s += `<line x1="${(X(g.cLimite)-6).toFixed(2)}" y1="${Y(g.cLimite+g.innerH).toFixed(2)}" x2="${(leftX-4).toFixed(2)}" y2="${Y(g.cLimite+g.innerH).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.8"></line>`;
-    s += `<line x1="${leftX.toFixed(2)}" y1="${Y(g.cLimite).toFixed(2)}" x2="${leftX.toFixed(2)}" y2="${Y(g.cLimite+g.innerH).toFixed(2)}" stroke="${pal.ink}" stroke-width="1" marker-start="url(#dimArrow)" marker-end="url(#dimArrow)"></line>`;
-    s += `<g transform="rotate(-90 ${leftX.toFixed(2)} ${((Y(g.cLimite)+Y(g.cLimite+g.innerH))/2).toFixed(2)})">` +
-         dimLabel(leftX, (Y(g.cLimite)+Y(g.cLimite+g.innerH))/2, fmt(g.innerH)+' m', 'middle') + `</g>`;
-
-    // one block width + one parcela height, called out for the first block in their own margin lanes
-    // (kept out of the grid interior so the labels never collide with parcela numbering or each other)
     if(g.blockRects.length){
       const b0 = g.blockRects[0];
-      const wy = Y(g.cLimite) - 16;
-      s += `<line x1="${X(b0.x).toFixed(2)}" y1="${(Y(b0.y)-6).toFixed(2)}" x2="${X(b0.x).toFixed(2)}" y2="${(wy-4).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.6" opacity="0.7"></line>`;
-      s += `<line x1="${X(b0.x+b0.w).toFixed(2)}" y1="${(Y(b0.y)-6).toFixed(2)}" x2="${X(b0.x+b0.w).toFixed(2)}" y2="${(wy-4).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.6" opacity="0.7"></line>`;
-      s += `<line x1="${X(b0.x).toFixed(2)}" y1="${wy.toFixed(2)}" x2="${X(b0.x+b0.w).toFixed(2)}" y2="${wy.toFixed(2)}" stroke="${pal.ink}" stroke-width="1" marker-start="url(#dimArrow)" marker-end="url(#dimArrow)"></line>`;
-      s += dimLabel((X(b0.x)+X(b0.x+b0.w))/2, wy, fmt(g.largura)+' m', 'middle');
-
-      const hx = X(g.cLimite) - 58;
-      s += `<line x1="${(X(b0.x)-6).toFixed(2)}" y1="${Y(b0.y).toFixed(2)}" x2="${(hx-4).toFixed(2)}" y2="${Y(b0.y).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.6" opacity="0.7"></line>`;
-      s += `<line x1="${(X(b0.x)-6).toFixed(2)}" y1="${Y(b0.y+g.comprimento).toFixed(2)}" x2="${(hx-4).toFixed(2)}" y2="${Y(b0.y+g.comprimento).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.6" opacity="0.7"></line>`;
-      s += `<line x1="${hx.toFixed(2)}" y1="${Y(b0.y).toFixed(2)}" x2="${hx.toFixed(2)}" y2="${Y(b0.y+g.comprimento).toFixed(2)}" stroke="${pal.ink}" stroke-width="1" marker-start="url(#dimArrow)" marker-end="url(#dimArrow)"></line>`;
-      s += `<g transform="rotate(-90 ${hx.toFixed(2)} ${((Y(b0.y)+Y(b0.y+g.comprimento))/2).toFixed(2)})">` +
-           dimLabel(hx, (Y(b0.y)+Y(b0.y+g.comprimento))/2, fmt(g.comprimento)+' m', 'middle') + `</g>`;
+      const topY2 = Y(g.cLimite) - 46;
+      s += `<line x1="${X(b0.x).toFixed(2)}" y1="${(Y(b0.y)-6).toFixed(2)}" x2="${X(b0.x).toFixed(2)}" y2="${(topY2-4).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.6" opacity="0.7"></line>`;
+      s += `<line x1="${X(b0.x+g.comprimento).toFixed(2)}" y1="${(Y(b0.y)-6).toFixed(2)}" x2="${X(b0.x+g.comprimento).toFixed(2)}" y2="${(topY2-4).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.6" opacity="0.7"></line>`;
+      s += `<line x1="${X(b0.x).toFixed(2)}" y1="${topY2.toFixed(2)}" x2="${X(b0.x+g.comprimento).toFixed(2)}" y2="${topY2.toFixed(2)}" stroke="${pal.ink}" stroke-width="1" marker-start="url(#dimArrow)" marker-end="url(#dimArrow)"></line>`;
+      s += dimLabel((X(b0.x)+X(b0.x+g.comprimento))/2, topY2, fmt(g.comprimento)+' m', 'middle');
 
       if(g.cParcela > 0 && g.linhas > 1){
-        const gapTop = Y(b0.y + g.comprimento), gapBottom = Y(b0.y + g.passo);
-        const hx2 = X(g.cLimite) - 24;
-        s += `<line x1="${(X(b0.x)-6).toFixed(2)}" y1="${gapTop.toFixed(2)}" x2="${(hx2-4).toFixed(2)}" y2="${gapTop.toFixed(2)}" stroke="${pal.ink}" stroke-width="0.6" opacity="0.7"></line>`;
-        s += `<line x1="${(X(b0.x)-6).toFixed(2)}" y1="${gapBottom.toFixed(2)}" x2="${(hx2-4).toFixed(2)}" y2="${gapBottom.toFixed(2)}" stroke="${pal.ink}" stroke-width="0.6" opacity="0.7"></line>`;
-        s += `<line x1="${hx2.toFixed(2)}" y1="${gapTop.toFixed(2)}" x2="${hx2.toFixed(2)}" y2="${gapBottom.toFixed(2)}" stroke="${pal.ink}" stroke-width="1" marker-start="url(#dimArrow)" marker-end="url(#dimArrow)"></line>`;
-        s += `<g transform="rotate(-90 ${hx2.toFixed(2)} ${((gapTop+gapBottom)/2).toFixed(2)})">` +
-             dimLabel(hx2, (gapTop+gapBottom)/2, fmt(g.cParcela)+' m', 'middle') + `</g>`;
+        const topY3 = Y(g.cLimite) - 16;
+        const gapL = X(b0.x+g.comprimento), gapR = X(b0.x+g.passo);
+        s += `<line x1="${gapL.toFixed(2)}" y1="${(Y(b0.y)-6).toFixed(2)}" x2="${gapL.toFixed(2)}" y2="${(topY3-4).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.6" opacity="0.7"></line>`;
+        s += `<line x1="${gapR.toFixed(2)}" y1="${(Y(b0.y)-6).toFixed(2)}" x2="${gapR.toFixed(2)}" y2="${(topY3-4).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.6" opacity="0.7"></line>`;
+        s += `<line x1="${gapL.toFixed(2)}" y1="${topY3.toFixed(2)}" x2="${gapR.toFixed(2)}" y2="${topY3.toFixed(2)}" stroke="${pal.ink}" stroke-width="1" marker-start="url(#dimArrow)" marker-end="url(#dimArrow)"></line>`;
+        s += dimLabel((gapL+gapR)/2, topY3, fmt(g.cParcela)+' m', 'middle');
       }
     }
 
-    // internal carreador width, called out between the first two blocks
-    if(g.internalRects.length){
-      const ir = g.internalRects[0];
-      const iy = Y(g.cLimite + g.innerH) - 14;
-      s += `<line x1="${X(ir.x).toFixed(2)}" y1="${iy.toFixed(2)}" x2="${X(ir.x+ir.w).toFixed(2)}" y2="${iy.toFixed(2)}" stroke="${pal.ink}" stroke-width="1" marker-start="url(#dimArrow)" marker-end="url(#dimArrow)"></line>`;
-      s += dimLabel((X(ir.x)+X(ir.x+ir.w))/2, iy - 12, fmt(g.cInterno)+' m', 'middle');
+    // left margin: the three vertical-direction measurements, stacked outermost to innermost
+    const leftX1 = X(g.cLimite) - 92;
+    s += `<line x1="${(X(g.cLimite)-6).toFixed(2)}" y1="${Y(g.cLimite).toFixed(2)}" x2="${(leftX1-4).toFixed(2)}" y2="${Y(g.cLimite).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.8"></line>`;
+    s += `<line x1="${(X(g.cLimite)-6).toFixed(2)}" y1="${Y(g.cLimite+g.innerH).toFixed(2)}" x2="${(leftX1-4).toFixed(2)}" y2="${Y(g.cLimite+g.innerH).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.8"></line>`;
+    s += `<line x1="${leftX1.toFixed(2)}" y1="${Y(g.cLimite).toFixed(2)}" x2="${leftX1.toFixed(2)}" y2="${Y(g.cLimite+g.innerH).toFixed(2)}" stroke="${pal.ink}" stroke-width="1" marker-start="url(#dimArrow)" marker-end="url(#dimArrow)"></line>`;
+    s += `<g transform="rotate(-90 ${leftX1.toFixed(2)} ${((Y(g.cLimite)+Y(g.cLimite+g.innerH))/2).toFixed(2)})">` +
+         dimLabel(leftX1, (Y(g.cLimite)+Y(g.cLimite+g.innerH))/2, fmt(g.innerH)+' m', 'middle') + `</g>`;
+
+    if(g.blockRects.length){
+      const b0 = g.blockRects[0];
+      const leftX2 = X(g.cLimite) - 58;
+      s += `<line x1="${(X(b0.x)-6).toFixed(2)}" y1="${Y(b0.y).toFixed(2)}" x2="${(leftX2-4).toFixed(2)}" y2="${Y(b0.y).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.6" opacity="0.7"></line>`;
+      s += `<line x1="${(X(b0.x)-6).toFixed(2)}" y1="${Y(b0.y+g.largura).toFixed(2)}" x2="${(leftX2-4).toFixed(2)}" y2="${Y(b0.y+g.largura).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.6" opacity="0.7"></line>`;
+      s += `<line x1="${leftX2.toFixed(2)}" y1="${Y(b0.y).toFixed(2)}" x2="${leftX2.toFixed(2)}" y2="${Y(b0.y+g.largura).toFixed(2)}" stroke="${pal.ink}" stroke-width="1" marker-start="url(#dimArrow)" marker-end="url(#dimArrow)"></line>`;
+      s += `<g transform="rotate(-90 ${leftX2.toFixed(2)} ${((Y(b0.y)+Y(b0.y+g.largura))/2).toFixed(2)})">` +
+           dimLabel(leftX2, (Y(b0.y)+Y(b0.y+g.largura))/2, fmt(g.largura)+' m', 'middle') + `</g>`;
+
+      if(g.internalRects.length){
+        const ir = g.internalRects[0];
+        const leftX3 = X(g.cLimite) - 24;
+        s += `<line x1="${(X(b0.x)-6).toFixed(2)}" y1="${Y(ir.y).toFixed(2)}" x2="${(leftX3-4).toFixed(2)}" y2="${Y(ir.y).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.6" opacity="0.7"></line>`;
+        s += `<line x1="${(X(b0.x)-6).toFixed(2)}" y1="${Y(ir.y+ir.h).toFixed(2)}" x2="${(leftX3-4).toFixed(2)}" y2="${Y(ir.y+ir.h).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.6" opacity="0.7"></line>`;
+        s += `<line x1="${leftX3.toFixed(2)}" y1="${Y(ir.y).toFixed(2)}" x2="${leftX3.toFixed(2)}" y2="${Y(ir.y+ir.h).toFixed(2)}" stroke="${pal.ink}" stroke-width="1" marker-start="url(#dimArrow)" marker-end="url(#dimArrow)"></line>`;
+        s += `<g transform="rotate(-90 ${leftX3.toFixed(2)} ${((Y(ir.y)+Y(ir.y+ir.h))/2).toFixed(2)})">` +
+             dimLabel(leftX3, (Y(ir.y)+Y(ir.y+ir.h))/2, fmt(g.cInterno)+' m', 'middle') + `</g>`;
+      }
     }
 
-    // boundary carreador width, called out on the right edge
+    // boundary carreador width, called out inside the bottom boundary strip
     if(g.cLimite > 0){
-      const ry = Y(g.cLimite + g.innerH*0.5);
-      const rx1 = X(g.cLimite+g.innerW), rx2 = X(g.totalW);
-      s += `<line x1="${rx1.toFixed(2)}" y1="${ry.toFixed(2)}" x2="${rx2.toFixed(2)}" y2="${ry.toFixed(2)}" stroke="${pal.ink}" stroke-width="1" marker-start="url(#dimArrow)" marker-end="url(#dimArrow)"></line>`;
-      s += dimLabel((rx1+rx2)/2, ry - 12, fmt(g.cLimite)+' m', 'middle');
+      const cx = X(g.cLimite + g.innerW*0.5);
+      const by1 = Y(g.cLimite+g.innerH), by2 = Y(g.totalH);
+      s += `<line x1="${cx.toFixed(2)}" y1="${by1.toFixed(2)}" x2="${cx.toFixed(2)}" y2="${by2.toFixed(2)}" stroke="${pal.ink}" stroke-width="1" marker-start="url(#dimArrow)" marker-end="url(#dimArrow)"></line>`;
+      s += `<g transform="rotate(-90 ${cx.toFixed(2)} ${((by1+by2)/2).toFixed(2)})">` +
+           dimLabel(cx, (by1+by2)/2, fmt(g.cLimite)+' m', 'middle') + `</g>`;
     }
 
     s += `</g>`;
@@ -790,8 +761,8 @@
     let parcelas = '';
     g.blockRects.forEach(b => {
       for(let j = 0; j < g.linhas; j++){
-        const y = b.y + j*g.passo;
-        const coords = ringCoords(toLL, b.x, y, b.w, g.comprimento);
+        const x = b.x + j*g.passo;
+        const coords = ringCoords(toLL, x, b.y, g.comprimento, b.h);
         const num = treatmentNumber(g, b.index, j);
         const treatName = treat.names[num-1];
         const nameSuffix = treat.isCustom ? ` (${treatName})` : '';
