@@ -143,10 +143,27 @@
     font-family:var(--font-display); font-size:1rem; font-weight:700; color:var(--ink);
   }
   .actions{ display:flex; gap:8px; flex-shrink:0; }
+  button{
+    font-family:var(--font-body); font-size:.82rem; font-weight:600;
+    padding:8px 14px; border-radius:7px; border:1px solid var(--line);
+    background:var(--panel-2); color:var(--ink); cursor:pointer;
+  }
+  button:hover{ border-color:var(--blue); }
+  button:focus-visible{ outline:2px solid var(--blue); outline-offset:1px; }
+  button.primary{ background:var(--blue); border-color:var(--blue); color:var(--panel); }
+
+  .preview-body{ display:flex; gap:16px; align-items:flex-start; }
+  .canvas-wrap{
+    flex:1; min-width:0;
+    border:1px solid var(--line); border-radius:8px; overflow:auto;
+    background:var(--croqui-bg);
+  }
+  #svg{ width:100%; height:auto; display:block; min-width:480px; }
+
   .stats-grid{
-    display:grid; grid-template-columns:repeat(auto-fit, minmax(116px,1fr));
-    gap:1px; background:var(--line); border:1px solid var(--line); border-radius:8px;
-    overflow:hidden; margin-bottom:16px;
+    display:flex; flex-direction:column; gap:1px; width:196px; flex-shrink:0;
+    background:var(--line); border:1px solid var(--line); border-radius:8px;
+    overflow:hidden;
   }
   .stat-tile{
     background:var(--panel-2); padding:9px 12px; display:flex; flex-direction:column; gap:3px;
@@ -158,20 +175,13 @@
     font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-weight:600;
     color:var(--ink); font-size:.84rem; line-height:1.3;
   }
-  button{
-    font-family:var(--font-body); font-size:.82rem; font-weight:600;
-    padding:8px 14px; border-radius:7px; border:1px solid var(--line);
-    background:var(--panel-2); color:var(--ink); cursor:pointer;
+  @media (max-width: 760px){
+    .preview-body{ flex-direction:column; }
+    .stats-grid{
+      flex-direction:row; flex-wrap:wrap; width:100%;
+    }
+    .stat-tile{ flex:1 1 116px; }
   }
-  button:hover{ border-color:var(--blue); }
-  button:focus-visible{ outline:2px solid var(--blue); outline-offset:1px; }
-  button.primary{ background:var(--blue); border-color:var(--blue); color:var(--panel); }
-
-  .canvas-wrap{
-    border:1px solid var(--line); border-radius:8px; overflow:auto;
-    background:var(--croqui-bg);
-  }
-  #svg{ width:100%; height:auto; display:block; min-width:560px; }
 
   .error{
     color:var(--danger); font-size:.82rem; margin:0 0 10px;
@@ -245,10 +255,12 @@
           <button type="button" class="primary" id="btnKml">Baixar KML</button>
         </div>
       </div>
-      <div class="stats-grid" id="stats"></div>
       <p class="error" id="error" hidden></p>
-      <div class="canvas-wrap">
-        <svg id="svg" viewBox="0 0 1100 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Croqui do experimento"></svg>
+      <div class="preview-body">
+        <div class="canvas-wrap">
+          <svg id="svg" viewBox="0 0 1100 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Croqui do experimento"></svg>
+        </div>
+        <div class="stats-grid" id="stats"></div>
       </div>
       <footer>O KML sai sempre georreferenciado no canto superior esquerdo fixo em 21&#176;10'31.84"S, 47&#176;37'44.01"O (SIRGAS 2000 / UTM 23S), com as dimens&#245;es exatas em metros a partir da&#237;.</footer>
     </section>
@@ -257,7 +269,7 @@
 
 <script>
 (function(){
-  const CANVAS_W = 1100, BASE_H = 720;
+  const CANVAS_W = 1100, MAX_BASE_H = 1000;
   const MARGIN = { left:24, right:130, top:36, bottom:100 };
 
   // Canto superior esquerdo do croqui, fixo em 21°10'31.84"S, 47°37'44.01"O (SIRGAS 2000 / UTM 23S).
@@ -406,11 +418,17 @@
   }
 
   function drawSVG(g){
+    // Fit width exactly (no side-margin fat to trim) and size the canvas height to match,
+    // so the drawing itself fills the space instead of floating in leftover vertical slack.
     const drawW = CANVAS_W - MARGIN.left - MARGIN.right;
-    const drawH = BASE_H - MARGIN.top - MARGIN.bottom;
-    const scale = Math.min(drawW / g.totalW, drawH / g.totalH);
+    let scale = drawW / g.totalW;
+    let baseH = Math.round(MARGIN.top + MARGIN.bottom + g.totalH * scale);
+    if(baseH > MAX_BASE_H){
+      baseH = MAX_BASE_H;
+      scale = (baseH - MARGIN.top - MARGIN.bottom) / g.totalH;
+    }
     const originX = MARGIN.left + (drawW - g.totalW * scale) / 2;
-    const originY = MARGIN.top + (drawH - g.totalH * scale) / 2;
+    const originY = MARGIN.top;
     const X = u => originX + u * scale;
     const Y = v => originY + v * scale;
 
@@ -420,8 +438,8 @@
     };
 
     const treat = getTreatmentInfo(g);
-    const legend = buildLegendSvg(g, treat, pal, BASE_H);
-    const totalH = BASE_H + legend.height;
+    const legend = buildLegendSvg(g, treat, pal, baseH);
+    const totalH = baseH + legend.height;
 
     let s = '';
     s += `<style>.dimset{ --dimline:${pal.ink}; --dimlabelbg:${pal.bg}; --dimfont:${cssVar('--font-mono')}; }</style>`;
@@ -739,7 +757,7 @@
     const g = window.__geom;
     if(!g) return;
     const EXPORT_SCALE = 2.5;
-    const totalH = window.__canvasTotalH || BASE_H;
+    const totalH = window.__canvasTotalH || MAX_BASE_H;
     const svgEl = $('svg');
     const clone = svgEl.cloneNode(true);
     clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
