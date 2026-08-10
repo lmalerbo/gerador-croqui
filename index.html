@@ -1,0 +1,840 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Gerador de Croqui — Layout de Experimentos</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#F3F0E3;
+    --panel:#FBF9F1;
+    --panel-2:#F1EDDD;
+    --ink:#242719;
+    --ink-muted:#6b6b57;
+    --line:#D9D3BB;
+    --tan:#C98A3C;
+    --tan-ink:#5c3d16;
+    --blue:#3E6B8A;
+    --blue-ink:#1f3a4b;
+    --danger:#a33d2d;
+    --shadow: 0 1px 2px rgba(36,39,25,.06), 0 6px 20px rgba(36,39,25,.06);
+    --font-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', serif;
+    --font-body: 'Segoe UI', system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: 'Cascadia Code', 'Consolas', 'SFMono-Regular', Menlo, Monaco, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#14170F;
+      --panel:#1B1F14;
+      --panel-2:#20261A;
+      --ink:#ECE7D3;
+      --ink-muted:#a5a48c;
+      --line:#3A3F2A;
+      --tan:#E0A855;
+      --tan-ink:#3a2a10;
+      --blue:#7BB2D6;
+      --blue-ink:#e8f3fa;
+      --danger:#e08672;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#14170F; --panel:#1B1F14; --panel-2:#20261A; --ink:#ECE7D3; --ink-muted:#a5a48c;
+    --line:#3A3F2A; --tan:#E0A855; --tan-ink:#3a2a10;
+    --blue:#7BB2D6; --blue-ink:#e8f3fa; --danger:#e08672;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  }
+  :root[data-theme="light"]{
+    --bg:#F3F0E3; --panel:#FBF9F1; --panel-2:#F1EDDD; --ink:#242719; --ink-muted:#6b6b57;
+    --line:#D9D3BB; --tan:#C98A3C; --tan-ink:#5c3d16;
+    --blue:#3E6B8A; --blue-ink:#1f3a4b; --danger:#a33d2d;
+    --shadow: 0 1px 2px rgba(36,39,25,.06), 0 6px 20px rgba(36,39,25,.06);
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--font-body);
+    line-height:1.4;
+  }
+  .app{ max-width:1400px; margin:0 auto; padding:28px 28px 48px; }
+  header{ margin-bottom:22px; }
+  header h1{
+    font-family:var(--font-display);
+    font-size:clamp(1.6rem, 2.2vw, 2.1rem);
+    margin:0 0 6px;
+    text-wrap:balance;
+    letter-spacing:.2px;
+  }
+  header p.subtitle{
+    margin:0; color:var(--ink-muted); font-size:.95rem; max-width:62ch;
+  }
+
+  .layout{
+    display:grid;
+    grid-template-columns:300px 1fr;
+    gap:20px;
+    align-items:start;
+  }
+  @media (max-width: 880px){
+    .layout{ grid-template-columns:1fr; }
+  }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    box-shadow:var(--shadow);
+  }
+  .form-panel{ padding:18px 18px 8px; }
+
+  fieldset{
+    border:none;
+    border-top:1px solid var(--line);
+    padding:14px 0;
+    margin:0;
+  }
+  fieldset:first-of-type{ border-top:none; padding-top:2px; }
+  legend{
+    padding:0; font-family:var(--font-display); font-size:.98rem;
+    color:var(--ink); margin-bottom:8px; font-weight:700;
+  }
+  legend .hint{
+    font-family:var(--font-body); font-weight:400; font-size:.72rem;
+    color:var(--ink-muted); display:block; margin-top:2px;
+  }
+  label{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    font-size:.85rem; color:var(--ink); margin-bottom:9px;
+  }
+  label:last-child{ margin-bottom:2px; }
+  label.choice-row{ justify-content:flex-start; gap:8px; }
+  label.choice-row input[type="radio"], label.choice-row input[type="checkbox"]{
+    width:15px; height:15px; accent-color:var(--blue); flex-shrink:0;
+  }
+  label.stack-label{
+    display:flex; flex-direction:column; align-items:stretch; gap:6px;
+    margin-top:10px; margin-bottom:2px;
+  }
+  label.stack-label .hint{ margin-top:0; min-height:1.4em; }
+  textarea#treatNames{
+    width:100%; padding:8px; border:1px solid var(--line); border-radius:6px;
+    background:var(--panel-2); color:var(--ink); font-family:var(--font-mono);
+    font-size:.8rem; resize:vertical; min-height:74px;
+  }
+  textarea#treatNames:focus-visible{ outline:2px solid var(--blue); outline-offset:1px; }
+  #btnReshuffle{ width:100%; margin:2px 0 4px; }
+  input[type="number"]{
+    width:108px; padding:6px 8px;
+    border:1px solid var(--line); border-radius:6px;
+    background:var(--panel-2); color:var(--ink);
+    font-family:var(--font-mono); font-variant-numeric:tabular-nums;
+    font-size:.86rem; text-align:right;
+  }
+  input[type="number"]:focus-visible{
+    outline:2px solid var(--blue); outline-offset:1px;
+  }
+
+  .preview-panel{ padding:16px 18px 20px; }
+  .preview-toolbar{
+    display:flex; align-items:flex-start; justify-content:space-between;
+    gap:16px; flex-wrap:wrap; margin-bottom:12px;
+  }
+  .stats{
+    display:flex; flex-wrap:wrap; gap:6px 18px;
+    font-size:.78rem; color:var(--ink-muted);
+  }
+  .stats b{
+    color:var(--ink); font-family:var(--font-mono); font-variant-numeric:tabular-nums;
+    font-weight:600;
+  }
+  .actions{ display:flex; gap:8px; flex-shrink:0; }
+  button{
+    font-family:var(--font-body); font-size:.82rem; font-weight:600;
+    padding:8px 14px; border-radius:7px; border:1px solid var(--line);
+    background:var(--panel-2); color:var(--ink); cursor:pointer;
+  }
+  button:hover{ border-color:var(--blue); }
+  button:focus-visible{ outline:2px solid var(--blue); outline-offset:1px; }
+  button.primary{ background:var(--blue); border-color:var(--blue); color:var(--panel); }
+
+  .canvas-wrap{
+    border:1px solid var(--line); border-radius:8px; overflow:auto;
+    background:var(--panel-2);
+  }
+  #svg{ width:100%; height:auto; display:block; min-width:560px; }
+
+  .error{
+    color:var(--danger); font-size:.82rem; margin:0 0 10px;
+  }
+
+  footer{ margin-top:18px; color:var(--ink-muted); font-size:.76rem; }
+  footer code{ font-family:var(--font-mono); }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Gerador de Croqui</h1>
+    <p class="subtitle">Monte o layout de blocos e parcelas de um experimento a campo e exporte o KML com as medidas em metros e uma imagem do croqui para compartilhar.</p>
+  </header>
+
+  <main class="layout">
+    <aside class="panel form-panel">
+      <form id="form">
+        <fieldset>
+          <legend>Parcela</legend>
+          <label>Comprimento (m)<input type="number" id="comprimento" value="12" step="0.5" min="0.1"></label>
+          <label>Largura (m)<input type="number" id="largura" value="30" step="0.5" min="0.1"></label>
+        </fieldset>
+        <fieldset>
+          <legend>Layout</legend>
+          <label>Qtd. de blocos (colunas)<input type="number" id="blocos" value="5" step="1" min="1"></label>
+          <label>Parcelas por bloco (linhas)<input type="number" id="linhas" value="5" step="1" min="1"></label>
+        </fieldset>
+        <fieldset>
+          <legend>Carreadores</legend>
+          <label>Carreador interno (m)<input type="number" id="carreadorInterno" value="10" step="0.5" min="0"></label>
+          <label>Carreador de limite (m)<input type="number" id="carreadorLimite" value="10" step="0.5" min="0"></label>
+        </fieldset>
+        <fieldset>
+          <legend>Delineamento<span class="hint">tratamento = mesmo número repetido entre blocos</span></legend>
+          <label class="choice-row"><input type="radio" name="delineamento" value="sequencial" checked> Sequencial (sem sorteio)</label>
+          <label class="choice-row"><input type="radio" name="delineamento" value="dic"> DIC — inteiramente casualizado</label>
+          <label class="choice-row"><input type="radio" name="delineamento" value="dbc"> DBC — blocos casualizados</label>
+          <button type="button" id="btnReshuffle" hidden>Sortear novamente</button>
+          <label class="choice-row" id="avoidAdjacentRow" hidden><input type="checkbox" id="avoidAdjacent"> Evitar mesmo tratamento em blocos vizinhos (mesma linha)</label>
+          <label class="stack-label">Nomes dos tratamentos (opcional)<span class="hint" id="treatHint"></span>
+            <textarea id="treatNames" rows="4" placeholder="Um por linha, ex.:&#10;Testemunha&#10;Dose 1&#10;Dose 2"></textarea>
+          </label>
+        </fieldset>
+      </form>
+    </aside>
+
+    <section class="panel preview-panel">
+      <div class="preview-toolbar">
+        <div class="stats" id="stats"></div>
+        <div class="actions">
+          <button type="button" id="btnPng">Baixar PNG</button>
+          <button type="button" class="primary" id="btnKml">Baixar KML</button>
+        </div>
+      </div>
+      <p class="error" id="error" hidden></p>
+      <div class="canvas-wrap">
+        <svg id="svg" viewBox="0 0 1100 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Croqui do experimento"></svg>
+      </div>
+      <footer>O KML sai sempre georreferenciado no canto superior esquerdo fixo em 21&#176;10'31.84"S, 47&#176;37'44.01"O (SIRGAS 2000 / UTM 23S), com as dimens&#245;es exatas em metros a partir da&#237;.</footer>
+    </section>
+  </main>
+</div>
+
+<script>
+(function(){
+  const CANVAS_W = 1100, BASE_H = 720;
+  const MARGIN = { left:100, right:130, top:80, bottom:64 };
+
+  // Canto superior esquerdo do croqui, fixo em 21°10'31.84"S, 47°37'44.01"O (SIRGAS 2000 / UTM 23S).
+  // Pré-convertido para UTM (GRS80/WGS84 — as duas coincidem em poucos mm, irrelevante nesta escala)
+  // para que só a conversão inversa (UTM -> lat/lon) precise rodar no navegador.
+  const UTM_REF = { easting: 227031.80945214117, northing: 7656164.666876096, zone: 23, south: true };
+
+  const $ = (id) => document.getElementById(id);
+  const numFields = ['comprimento','largura','blocos','linhas','carreadorInterno','carreadorLimite'];
+
+  function utmToLatLon(easting, northing, zone, southhemi){
+    const a = 6378137.0, eccSq = 0.00669438, k0 = 0.9996;
+    const e1 = (1 - Math.sqrt(1 - eccSq)) / (1 + Math.sqrt(1 - eccSq));
+    const x = easting - 500000.0;
+    const y = southhemi ? northing - 10000000.0 : northing;
+    const longOrigin = (zone - 1) * 6 - 180 + 3;
+    const eccPrimeSq = eccSq / (1 - eccSq);
+    const M = y / k0;
+    const mu = M / (a * (1 - eccSq/4 - 3*eccSq*eccSq/64 - 5*Math.pow(eccSq,3)/256));
+    const phi1 = mu + (3*e1/2 - 27*Math.pow(e1,3)/32) * Math.sin(2*mu)
+                     + (21*e1*e1/16 - 55*Math.pow(e1,4)/32) * Math.sin(4*mu)
+                     + (151*Math.pow(e1,3)/96) * Math.sin(6*mu);
+    const N1 = a / Math.sqrt(1 - eccSq*Math.sin(phi1)*Math.sin(phi1));
+    const T1 = Math.tan(phi1)*Math.tan(phi1);
+    const C1 = eccPrimeSq*Math.cos(phi1)*Math.cos(phi1);
+    const R1 = a * (1 - eccSq) / Math.pow(1 - eccSq*Math.sin(phi1)*Math.sin(phi1), 1.5);
+    const D = x / (N1 * k0);
+    let lat = phi1 - (N1*Math.tan(phi1)/R1) * (D*D/2 - (5+3*T1+10*C1-4*C1*C1-9*eccPrimeSq)*Math.pow(D,4)/24
+                + (61+90*T1+298*C1+45*T1*T1-252*eccPrimeSq-3*C1*C1)*Math.pow(D,6)/720);
+    lat = lat * 180/Math.PI;
+    let lon = (D - (1+2*T1+C1)*Math.pow(D,3)/6 + (5-2*C1+28*T1-3*C1*C1+8*eccPrimeSq+24*T1*T1)*Math.pow(D,5)/120) / Math.cos(phi1);
+    lon = longOrigin + lon * 180/Math.PI;
+    return { lat, lon };
+  }
+
+  function fmt(n, dec){
+    dec = dec === undefined ? 2 : dec;
+    return n.toLocaleString('pt-BR', { minimumFractionDigits:dec, maximumFractionDigits:dec });
+  }
+
+  function cssVar(name){
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  function escapeXml(s){
+    return String(s).replace(/[<>&'"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;',"'":'&apos;','"':'&quot;'}[c]));
+  }
+
+  // Validated categorical palette (dataviz skill reference set): colorblind-safe adjacent pairs,
+  // tuned separately for each surface rather than a naive light/dark inversion.
+  const TREAT_PALETTE = {
+    light: ['#2a78d6','#eb6834','#1baf7a','#eda100','#e87ba4','#008300','#4a3aa7','#e34948'],
+    dark:  ['#3987e5','#d95926','#199e70','#c98500','#d55181','#008300','#9085e9','#e66767']
+  };
+
+  function isDarkTheme(){
+    const attr = document.documentElement.getAttribute('data-theme');
+    if(attr === 'dark') return true;
+    if(attr === 'light') return false;
+    return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  }
+
+  function treatColor(num){
+    const arr = isDarkTheme() ? TREAT_PALETTE.dark : TREAT_PALETTE.light;
+    return arr[(num-1) % arr.length];
+  }
+
+  function relLuminance(hex){
+    hex = hex.replace('#','');
+    const [r,g,b] = [0,2,4].map(i => parseInt(hex.slice(i,i+2),16)/255);
+    const lin = c => c <= 0.03928 ? c/12.92 : Math.pow((c+0.055)/1.055, 2.4);
+    return 0.2126*lin(r) + 0.7152*lin(g) + 0.0722*lin(b);
+  }
+
+  function textOn(hex){
+    const L = relLuminance(hex);
+    const contrastWhite = (1.05) / (L + 0.05);
+    const contrastBlack = (L + 0.05) / 0.05;
+    return contrastBlack > contrastWhite ? '#141414' : '#ffffff';
+  }
+
+  function fitText(text, maxWidthPx, fontSize){
+    const charW = fontSize * 0.62;
+    const maxChars = Math.max(1, Math.floor(maxWidthPx / charW));
+    if(text.length <= maxChars) return text;
+    return maxChars <= 1 ? text.slice(0,1) : text.slice(0, maxChars-1) + '…';
+  }
+
+  function readInputs(){
+    const v = {};
+    numFields.forEach(id => v[id] = parseFloat($(id).value));
+    return v;
+  }
+
+  function computeGeometry(){
+    const v = readInputs();
+    const errors = [];
+    if(!(v.comprimento > 0)) errors.push('comprimento da parcela deve ser maior que zero');
+    if(!(v.largura > 0)) errors.push('largura da parcela deve ser maior que zero');
+    if(!(Number.isFinite(v.blocos) && v.blocos >= 1)) errors.push('quantidade de blocos deve ser ao menos 1');
+    if(!(Number.isFinite(v.linhas) && v.linhas >= 1)) errors.push('parcelas por bloco deve ser ao menos 1');
+    if(!(v.carreadorInterno >= 0)) errors.push('carreador interno não pode ser negativo');
+    if(!(v.carreadorLimite >= 0)) errors.push('carreador de limite não pode ser negativo');
+    if(errors.length) return { valid:false, errors };
+
+    const blocos = Math.round(v.blocos), linhas = Math.round(v.linhas);
+    const comprimento = v.comprimento, largura = v.largura;
+    const cInterno = v.carreadorInterno, cLimite = v.carreadorLimite;
+
+    const innerW = blocos * largura + (blocos - 1) * cInterno;
+    const innerH = linhas * comprimento;
+    const totalW = innerW + 2 * cLimite;
+    const totalH = innerH + 2 * cLimite;
+
+    const blockRects = [];
+    for(let i = 0; i < blocos; i++){
+      blockRects.push({ x: cLimite + i * (largura + cInterno), y: cLimite, w: largura, h: innerH, index:i+1 });
+    }
+    const internalRects = [];
+    for(let i = 0; i < blocos - 1; i++){
+      internalRects.push({ x: blockRects[i].x + largura, y: cLimite, w: cInterno, h: innerH });
+    }
+    const boundaryRects = cLimite > 0 ? [
+      { name:'Carreador de limite - superior', x:0, y:0, w:totalW, h:cLimite },
+      { name:'Carreador de limite - inferior', x:0, y:totalH - cLimite, w:totalW, h:cLimite },
+      { name:'Carreador de limite - esquerda', x:0, y:cLimite, w:cLimite, h:innerH },
+      { name:'Carreador de limite - direita', x:totalW - cLimite, y:cLimite, w:cLimite, h:innerH }
+    ] : [];
+
+    return {
+      valid:true, comprimento, largura, blocos, linhas, cInterno, cLimite,
+      innerW, innerH, totalW, totalH, blockRects, internalRects, boundaryRects
+    };
+  }
+
+  function arrowMarkerDefs(){
+    return `<defs>
+      <marker id="dimArrow" viewBox="0 0 10 8" refX="5" refY="4" markerWidth="7" markerHeight="6" orient="auto-start-reverse">
+        <path d="M0,0 L10,4 L0,8 Z" fill="var(--dimline)"></path>
+      </marker>
+    </defs>`;
+  }
+
+  function dimLabel(x, y, text, anchor){
+    const fontSize = 15;
+    const charW = fontSize * 0.6;
+    const w = text.length * charW + 10;
+    const h = fontSize + 8;
+    let rectX = x - w/2;
+    if(anchor === 'start') rectX = x;
+    if(anchor === 'end') rectX = x - w;
+    return `<rect x="${rectX.toFixed(1)}" y="${(y - h/2).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="var(--dimlabelbg)" opacity="0.92"></rect>
+      <text x="${x.toFixed(1)}" y="${(y + fontSize*0.32).toFixed(1)}" font-family="var(--dimfont)" font-size="${fontSize}" fill="var(--dimline)" text-anchor="${anchor === 'start' ? 'start' : anchor === 'end' ? 'end' : 'middle'}">${text}</text>`;
+  }
+
+  function drawSVG(g){
+    const drawW = CANVAS_W - MARGIN.left - MARGIN.right;
+    const drawH = BASE_H - MARGIN.top - MARGIN.bottom;
+    const scale = Math.min(drawW / g.totalW, drawH / g.totalH);
+    const originX = MARGIN.left + (drawW - g.totalW * scale) / 2;
+    const originY = MARGIN.top + (drawH - g.totalH * scale) / 2;
+    const X = u => originX + u * scale;
+    const Y = v => originY + v * scale;
+
+    const pal = {
+      bg: cssVar('--panel-2'), panel: cssVar('--panel'), ink: cssVar('--ink'),
+      line: cssVar('--line'), tan: cssVar('--tan'), blue: cssVar('--blue')
+    };
+
+    const treat = getTreatmentInfo(g);
+    const legend = buildLegendSvg(g, treat, pal, BASE_H);
+    const totalH = BASE_H + legend.height;
+
+    let s = '';
+    s += `<style>.dimset{ --dimline:${pal.ink}; --dimlabelbg:${pal.bg}; --dimfont:${cssVar('--font-mono')}; }</style>`;
+    s += `<rect x="0" y="0" width="${CANVAS_W}" height="${totalH}" fill="${pal.bg}"></rect>`;
+    s += arrowMarkerDefs();
+    s += `<g class="dimset">`;
+
+    if(g.cLimite > 0){
+      s += `<rect x="${X(0)}" y="${Y(0)}" width="${(g.totalW*scale).toFixed(2)}" height="${(g.totalH*scale).toFixed(2)}" fill="${pal.tan}" opacity="0.55"></rect>`;
+    }
+    s += `<rect x="${X(g.cLimite)}" y="${Y(g.cLimite)}" width="${(g.innerW*scale).toFixed(2)}" height="${(g.innerH*scale).toFixed(2)}" fill="${pal.tan}"></rect>`;
+
+    g.blockRects.forEach(b => {
+      const bx = X(b.x), by = Y(b.y), bw = b.w*scale, bh = b.h*scale;
+      const rowH = g.comprimento*scale;
+      for(let j = 0; j < g.linhas; j++){
+        const num = treatmentNumber(g, b.index, j);
+        const color = treatColor(num);
+        const ry = Y(b.y + j*g.comprimento);
+        s += `<rect x="${bx.toFixed(2)}" y="${ry.toFixed(2)}" width="${bw.toFixed(2)}" height="${rowH.toFixed(2)}" fill="${color}" stroke="${pal.bg}" stroke-width="1"></rect>`;
+      }
+      s += `<rect x="${bx.toFixed(2)}" y="${by.toFixed(2)}" width="${bw.toFixed(2)}" height="${bh.toFixed(2)}" fill="none" stroke="${pal.ink}" stroke-width="1.4"></rect>`;
+      const showNums = g.blocos * g.linhas <= 60;
+      if(showNums){
+        for(let j = 0; j < g.linhas; j++){
+          const num = treatmentNumber(g, b.index, j);
+          const color = treatColor(num);
+          const textColor = textOn(color);
+          const cx = bx + bw/2;
+          const cy = Y(b.y + j*g.comprimento + g.comprimento/2);
+          if(treat.isCustom && rowH >= 34){
+            const name = fitText(treat.names[num-1], bw-10, 10);
+            s += `<text x="${cx.toFixed(2)}" y="${(cy-2).toFixed(2)}" font-family="${cssVar('--font-mono')}" font-size="12" font-weight="700" fill="${textColor}" text-anchor="middle">${num}</text>`;
+            s += `<text x="${cx.toFixed(2)}" y="${(cy+11).toFixed(2)}" font-family="${cssVar('--font-mono')}" font-size="10" fill="${textColor}" text-anchor="middle" opacity="0.92">${escapeXml(name)}</text>`;
+            continue;
+          }
+          s += `<text x="${cx.toFixed(2)}" y="${(cy+4).toFixed(2)}" font-family="${cssVar('--font-mono')}" font-size="12" fill="${textColor}" text-anchor="middle" opacity="0.92">${num}</text>`;
+        }
+      }
+      s += `<text x="${(bx+bw/2).toFixed(2)}" y="${(by-8).toFixed(2)}" font-family="${cssVar('--font-display')}" font-size="15" font-weight="700" fill="${pal.ink}" text-anchor="middle">B${b.index}</text>`;
+    });
+
+    // overall width (top) and height (left) dimensions, spanning the inner grid — mirrors the reference sketch
+    const topY = Y(g.cLimite) - 46;
+    s += `<line x1="${X(g.cLimite)}" y1="${(Y(g.cLimite)-6).toFixed(2)}" x2="${X(g.cLimite)}" y2="${(topY-4).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.8"></line>`;
+    s += `<line x1="${X(g.cLimite+g.innerW)}" y1="${(Y(g.cLimite)-6).toFixed(2)}" x2="${X(g.cLimite+g.innerW)}" y2="${(topY-4).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.8"></line>`;
+    s += `<line x1="${X(g.cLimite)}" y1="${topY.toFixed(2)}" x2="${X(g.cLimite+g.innerW)}" y2="${topY.toFixed(2)}" stroke="${pal.ink}" stroke-width="1" marker-start="url(#dimArrow)" marker-end="url(#dimArrow)"></line>`;
+    s += dimLabel((X(g.cLimite)+X(g.cLimite+g.innerW))/2, topY, fmt(g.innerW)+' m', 'middle');
+
+    const leftX = X(g.cLimite) - 58;
+    s += `<line x1="${(X(g.cLimite)-6).toFixed(2)}" y1="${Y(g.cLimite).toFixed(2)}" x2="${(leftX-4).toFixed(2)}" y2="${Y(g.cLimite).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.8"></line>`;
+    s += `<line x1="${(X(g.cLimite)-6).toFixed(2)}" y1="${Y(g.cLimite+g.innerH).toFixed(2)}" x2="${(leftX-4).toFixed(2)}" y2="${Y(g.cLimite+g.innerH).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.8"></line>`;
+    s += `<line x1="${leftX.toFixed(2)}" y1="${Y(g.cLimite).toFixed(2)}" x2="${leftX.toFixed(2)}" y2="${Y(g.cLimite+g.innerH).toFixed(2)}" stroke="${pal.ink}" stroke-width="1" marker-start="url(#dimArrow)" marker-end="url(#dimArrow)"></line>`;
+    s += `<g transform="rotate(-90 ${leftX.toFixed(2)} ${((Y(g.cLimite)+Y(g.cLimite+g.innerH))/2).toFixed(2)})">` +
+         dimLabel(leftX, (Y(g.cLimite)+Y(g.cLimite+g.innerH))/2, fmt(g.innerH)+' m', 'middle') + `</g>`;
+
+    // one block width + one parcela height, called out for the first block in their own margin lanes
+    // (kept out of the grid interior so the labels never collide with parcela numbering or each other)
+    if(g.blockRects.length){
+      const b0 = g.blockRects[0];
+      const wy = Y(g.cLimite) - 16;
+      s += `<line x1="${X(b0.x).toFixed(2)}" y1="${(Y(b0.y)-6).toFixed(2)}" x2="${X(b0.x).toFixed(2)}" y2="${(wy-4).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.6" opacity="0.7"></line>`;
+      s += `<line x1="${X(b0.x+b0.w).toFixed(2)}" y1="${(Y(b0.y)-6).toFixed(2)}" x2="${X(b0.x+b0.w).toFixed(2)}" y2="${(wy-4).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.6" opacity="0.7"></line>`;
+      s += `<line x1="${X(b0.x).toFixed(2)}" y1="${wy.toFixed(2)}" x2="${X(b0.x+b0.w).toFixed(2)}" y2="${wy.toFixed(2)}" stroke="${pal.ink}" stroke-width="1" marker-start="url(#dimArrow)" marker-end="url(#dimArrow)"></line>`;
+      s += dimLabel((X(b0.x)+X(b0.x+b0.w))/2, wy, fmt(g.largura)+' m', 'middle');
+
+      const hx = X(g.cLimite) - 24;
+      s += `<line x1="${(X(b0.x)-6).toFixed(2)}" y1="${Y(b0.y).toFixed(2)}" x2="${(hx-4).toFixed(2)}" y2="${Y(b0.y).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.6" opacity="0.7"></line>`;
+      s += `<line x1="${(X(b0.x)-6).toFixed(2)}" y1="${Y(b0.y+g.comprimento).toFixed(2)}" x2="${(hx-4).toFixed(2)}" y2="${Y(b0.y+g.comprimento).toFixed(2)}" stroke="${pal.ink}" stroke-width="0.6" opacity="0.7"></line>`;
+      s += `<line x1="${hx.toFixed(2)}" y1="${Y(b0.y).toFixed(2)}" x2="${hx.toFixed(2)}" y2="${Y(b0.y+g.comprimento).toFixed(2)}" stroke="${pal.ink}" stroke-width="1" marker-start="url(#dimArrow)" marker-end="url(#dimArrow)"></line>`;
+      s += `<g transform="rotate(-90 ${hx.toFixed(2)} ${((Y(b0.y)+Y(b0.y+g.comprimento))/2).toFixed(2)})">` +
+           dimLabel(hx, (Y(b0.y)+Y(b0.y+g.comprimento))/2, fmt(g.comprimento)+' m', 'middle') + `</g>`;
+    }
+
+    // internal carreador width, called out between the first two blocks
+    if(g.internalRects.length){
+      const ir = g.internalRects[0];
+      const iy = Y(g.cLimite + g.innerH) - 14;
+      s += `<line x1="${X(ir.x).toFixed(2)}" y1="${iy.toFixed(2)}" x2="${X(ir.x+ir.w).toFixed(2)}" y2="${iy.toFixed(2)}" stroke="${pal.ink}" stroke-width="1" marker-start="url(#dimArrow)" marker-end="url(#dimArrow)"></line>`;
+      s += dimLabel((X(ir.x)+X(ir.x+ir.w))/2, iy - 12, fmt(g.cInterno)+' m', 'middle');
+    }
+
+    // boundary carreador width, called out on the right edge
+    if(g.cLimite > 0){
+      const ry = Y(g.cLimite + g.innerH*0.5);
+      const rx1 = X(g.cLimite+g.innerW), rx2 = X(g.totalW);
+      s += `<line x1="${rx1.toFixed(2)}" y1="${ry.toFixed(2)}" x2="${rx2.toFixed(2)}" y2="${ry.toFixed(2)}" stroke="${pal.ink}" stroke-width="1" marker-start="url(#dimArrow)" marker-end="url(#dimArrow)"></line>`;
+      s += dimLabel((rx1+rx2)/2, ry - 12, fmt(g.cLimite)+' m', 'middle');
+    }
+
+    s += `</g>`;
+    s += legend.svg;
+    $('svg').setAttribute('viewBox', `0 0 ${CANVAS_W} ${totalH}`);
+    $('svg').innerHTML = s;
+    window.__canvasTotalH = totalH;
+  }
+
+  const MODE_LABEL = {
+    sequencial: 'Sequencial (sem sorteio)',
+    dic: 'DIC — Delineamento Inteiramente Casualizado',
+    dbc: 'DBC — Delineamento em Blocos Casualizados'
+  };
+  const MODE_CAPTION = {
+    sequencial: 'Numeração de tratamentos em ordem fixa, sem sorteio.',
+    dic: 'Tratamentos sorteados livremente em todo o experimento, sem respeitar blocos.',
+    dbc: 'Cada tratamento sorteado uma vez por bloco (repetição).'
+  };
+
+  function drawStats(g){
+    const areaTotal = g.totalW * g.totalH;
+    const areaParcelas = g.blocos * g.linhas * g.comprimento * g.largura;
+    const areaCarreadorInterno = g.internalRects.reduce((a,r)=>a+r.w*r.h, 0);
+    const areaCarreadorLimite = areaTotal - g.innerW*g.innerH;
+    $('stats').innerHTML = `
+      <span>Dimensão total: <b>${fmt(g.totalW)} × ${fmt(g.totalH)} m</b></span>
+      <span>Área total: <b>${fmt(areaTotal/10000)} ha</b> (${fmt(areaTotal,0)} m²)</span>
+      <span>Parcelas: <b>${g.blocos*g.linhas}</b> (${g.blocos}×${g.linhas}) de <b>${fmt(g.largura)}×${fmt(g.comprimento)} m</b></span>
+      <span>Tratamentos: <b>${g.linhas}</b></span>
+      <span>Delineamento: <b>${MODE_LABEL[assignmentMode]}</b></span>
+      <span>Área parcelas: <b>${fmt(areaParcelas,0)} m²</b></span>
+      <span>Área carreadores: <b>${fmt(areaCarreadorInterno+areaCarreadorLimite,0)} m²</b></span>
+    `;
+  }
+
+  let assignmentMode = 'sequencial';
+  let perBlockAssignment = null;
+  let globalAssignment = null;
+
+  function shuffledPermutation(n){
+    const arr = Array.from({length:n}, (_,i) => i+1);
+    for(let i = arr.length-1; i > 0; i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  // DBC: a permutation always has at least one full derangement relative to another (for N≥2),
+  // so building left-to-right and re-rolling a block until it clashes nowhere with the already-
+  // fixed block to its left is *guaranteed* to succeed — no swap deadlocks, no leftover conflicts.
+  function derangementOf(perm){
+    if(perm.length < 2) return null;
+    for(let attempt = 0; attempt < 200; attempt++){
+      const candidate = shuffledPermutation(perm.length);
+      if(candidate.every((v,i) => v !== perm[i])) return candidate;
+    }
+    return null;
+  }
+
+  // DIC: draw each cell from the shared pool, excluding the left neighbor's value whenever the
+  // pool still has another option — falls back to a repeat only in the rare case that's all
+  // that's left, so the total reps per treatment stay exact.
+  function pickFromPool(pool, forbidden){
+    let idx;
+    if(forbidden !== undefined && pool.some(v => v !== forbidden)){
+      do { idx = Math.floor(Math.random()*pool.length); } while(pool[idx] === forbidden);
+    } else {
+      idx = Math.floor(Math.random()*pool.length);
+    }
+    const val = pool[idx];
+    pool.splice(idx,1);
+    return val;
+  }
+
+  function reshuffle(g){
+    const avoid = $('avoidAdjacent').checked;
+    if(assignmentMode === 'dbc'){
+      const matrix = [shuffledPermutation(g.linhas)];
+      for(let b = 1; b < g.blocos; b++){
+        const d = avoid ? derangementOf(matrix[b-1]) : null;
+        matrix.push(d || shuffledPermutation(g.linhas));
+      }
+      perBlockAssignment = matrix;
+      globalAssignment = null;
+    } else if(assignmentMode === 'dic'){
+      const pool = [];
+      for(let t = 1; t <= g.linhas; t++){ for(let r = 0; r < g.blocos; r++) pool.push(t); }
+      const matrix = [];
+      for(let b = 0; b < g.blocos; b++){
+        const row = [];
+        for(let j = 0; j < g.linhas; j++){
+          const forbidden = (avoid && b > 0) ? matrix[b-1][j] : undefined;
+          row.push(pickFromPool(pool, forbidden));
+        }
+        matrix.push(row);
+      }
+      globalAssignment = matrix.flat();
+      perBlockAssignment = null;
+    }
+  }
+
+  let lastAvoidState = null;
+
+  function ensureAssignment(g){
+    assignmentMode = document.querySelector('input[name="delineamento"]:checked').value;
+    const avoid = $('avoidAdjacent').checked;
+    $('btnReshuffle').hidden = (assignmentMode === 'sequencial');
+    $('avoidAdjacentRow').hidden = (assignmentMode === 'sequencial');
+    if(assignmentMode === 'sequencial'){ perBlockAssignment = null; globalAssignment = null; lastAvoidState = null; return; }
+    if(assignmentMode === 'dbc'){
+      const stale = !perBlockAssignment || perBlockAssignment.length !== g.blocos ||
+        (perBlockAssignment[0] && perBlockAssignment[0].length !== g.linhas) || avoid !== lastAvoidState;
+      if(stale){ reshuffle(g); lastAvoidState = avoid; }
+    } else if(assignmentMode === 'dic'){
+      const stale = !globalAssignment || globalAssignment.length !== g.blocos*g.linhas || avoid !== lastAvoidState;
+      if(stale){ reshuffle(g); lastAvoidState = avoid; }
+    }
+  }
+
+  function treatmentNumber(g, blockIndex1, rowIndex0){
+    if(assignmentMode === 'dbc' && perBlockAssignment) return perBlockAssignment[blockIndex1-1][rowIndex0];
+    if(assignmentMode === 'dic' && globalAssignment) return globalAssignment[(blockIndex1-1)*g.linhas + rowIndex0];
+    return rowIndex0 + 1;
+  }
+
+  function parseTreatRaw(){
+    return $('treatNames').value.split(/[\n,]/).map(s => s.trim()).filter(Boolean);
+  }
+
+  function getTreatmentInfo(g){
+    const raw = parseTreatRaw();
+    if(raw.length === g.linhas) return { names: raw, isCustom: true };
+    return { names: Array.from({length:g.linhas}, (_,i) => String(i+1)), isCustom: false };
+  }
+
+  function updateTreatHint(g){
+    const raw = parseTreatRaw();
+    const hintEl = $('treatHint');
+    if(raw.length === 0) hintEl.textContent = `um por linha — ${g.linhas} necessários para nomear (senão numera)`;
+    else if(raw.length === g.linhas) hintEl.textContent = `${raw.length} nomes definidos`;
+    else hintEl.textContent = `${raw.length} de ${g.linhas} necessários — numerando por enquanto`;
+  }
+
+  function estTextW(text, fontSize){ return text.length * fontSize * 0.62; }
+
+  function buildLegendSvg(g, treat, pal, startY){
+    let s = '';
+    let y = startY + 8;
+    s += `<line x1="24" y1="${y.toFixed(2)}" x2="${CANVAS_W-24}" y2="${y.toFixed(2)}" stroke="${pal.line}" stroke-width="1"></line>`;
+    y += 26;
+
+    s += `<text x="24" y="${y.toFixed(2)}" font-family="${cssVar('--font-display')}" font-size="14" font-weight="700" fill="${pal.ink}">${escapeXml(MODE_LABEL[assignmentMode])}</text>`;
+    y += 19;
+    s += `<text x="24" y="${y.toFixed(2)}" font-family="${cssVar('--font-mono')}" font-size="11" fill="${pal.ink}" opacity="0.72">${escapeXml(MODE_CAPTION[assignmentMode])}</text>`;
+    y += 30;
+
+    s += `<text x="24" y="${y.toFixed(2)}" font-family="${cssVar('--font-mono')}" font-size="10" fill="${pal.ink}" opacity="0.6" letter-spacing="0.06em">TRATAMENTOS</text>`;
+    y += 20;
+
+    const gapY = 22, leftPad = 24, rightEdge = CANVAS_W - 24, swatchGap = 6, itemGap = 24;
+    let rowX = leftPad;
+    treat.names.forEach((name, i) => {
+      const num = i+1;
+      const color = treatColor(num);
+      const text = treat.isCustom ? `${num} — ${name}` : String(num);
+      const w = 14 + swatchGap + estTextW(text, 12);
+      if(rowX + w > rightEdge && rowX > leftPad){ rowX = leftPad; y += gapY; }
+      s += `<rect x="${rowX.toFixed(2)}" y="${(y-11).toFixed(2)}" width="14" height="14" rx="3" fill="${color}" stroke="${pal.ink}" stroke-width="0.6"></rect>`;
+      s += `<text x="${(rowX+14+swatchGap).toFixed(2)}" y="${y.toFixed(2)}" font-family="${cssVar('--font-mono')}" font-size="12" fill="${pal.ink}">${escapeXml(text)}</text>`;
+      rowX += w + itemGap;
+    });
+    y += gapY + 16;
+
+    s += `<text x="24" y="${y.toFixed(2)}" font-family="${cssVar('--font-mono')}" font-size="10" fill="${pal.ink}" opacity="0.6" letter-spacing="0.06em">CARREADORES</text>`;
+    y += 20;
+
+    const carreadorSwatches = [
+      { color: pal.tan, opacity: 1, label: 'Carreador interno' },
+      { color: pal.tan, opacity: 0.55, label: 'Carreador de limite' }
+    ];
+    let cx = leftPad;
+    carreadorSwatches.forEach(sw => {
+      s += `<rect x="${cx}" y="${(y-11).toFixed(2)}" width="14" height="14" rx="3" fill="${sw.color}" opacity="${sw.opacity}" stroke="${pal.ink}" stroke-width="0.6"></rect>`;
+      s += `<text x="${cx+14+swatchGap}" y="${y.toFixed(2)}" font-family="${cssVar('--font-mono')}" font-size="12" fill="${pal.ink}">${escapeXml(sw.label)}</text>`;
+      cx += 14 + swatchGap + estTextW(sw.label, 12) + itemGap;
+    });
+    y += 18;
+
+    return { svg: s, height: y - startY };
+  }
+
+  function render(){
+    const g = computeGeometry();
+    const errEl = $('error');
+    if(!g.valid){
+      errEl.hidden = false;
+      errEl.textContent = 'Corrija os valores: ' + g.errors.join('; ') + '.';
+      return;
+    }
+    errEl.hidden = true;
+    ensureAssignment(g);
+    updateTreatHint(g);
+    drawSVG(g);
+    drawStats(g);
+    window.__geom = g;
+  }
+
+  function downloadBlob(blob, filename){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  }
+
+  function exportPng(){
+    const g = window.__geom;
+    if(!g) return;
+    const EXPORT_SCALE = 2.5;
+    const totalH = window.__canvasTotalH || BASE_H;
+    const svgEl = $('svg');
+    const clone = svgEl.cloneNode(true);
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    clone.setAttribute('width', CANVAS_W);
+    clone.setAttribute('height', totalH);
+    const svgString = new XMLSerializer().serializeToString(clone);
+    const svg64 = btoa(unescape(encodeURIComponent(svgString)));
+    const img = new Image();
+    img.onload = function(){
+      const canvas = document.createElement('canvas');
+      canvas.width = CANVAS_W * EXPORT_SCALE;
+      canvas.height = totalH * EXPORT_SCALE;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(blob => downloadBlob(blob, 'croqui.png'));
+    };
+    img.src = 'data:image/svg+xml;base64,' + svg64;
+  }
+
+  function hexToKmlColor(hex, alphaHex){
+    hex = hex.replace('#','').trim();
+    if(hex.length === 3) hex = hex.split('').map(c=>c+c).join('');
+    const r = hex.slice(0,2), gC = hex.slice(2,4), b = hex.slice(4,6);
+    return (alphaHex || 'C8') + b + gC + r;
+  }
+
+  function makeLatLonConverter(){
+    // u = meters east of the reference corner, v = meters south of it (down the drawing) —
+    // both map directly onto UTM easting/northing since it's a meter-based projected grid.
+    return function(u, v){
+      const easting = UTM_REF.easting + u;
+      const northing = UTM_REF.northing - v;
+      const { lat, lon } = utmToLatLon(easting, northing, UTM_REF.zone, UTM_REF.south);
+      return `${lon.toFixed(9)},${lat.toFixed(9)},0`;
+    };
+  }
+
+  function ringCoords(toLL, x, y, w, h){
+    return [ toLL(x,y), toLL(x+w,y), toLL(x+w,y+h), toLL(x,y+h), toLL(x,y) ].join(' ');
+  }
+
+  function kmlPlacemark(name, styleId, coords, description){
+    return `<Placemark><name>${escapeXml(name)}</name>${description ? `<description>${escapeXml(description)}</description>` : ''}<styleUrl>#${styleId}</styleUrl><Polygon><outerBoundaryIs><LinearRing><coordinates>${coords}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>`;
+  }
+
+  function buildKml(g){
+    const toLL = makeLatLonConverter();
+    const pal = { tan: cssVar('--tan'), blue: cssVar('--blue') };
+    const treat = getTreatmentInfo(g);
+
+    let parcelas = '';
+    g.blockRects.forEach(b => {
+      for(let j = 0; j < g.linhas; j++){
+        const y = b.y + j*g.comprimento;
+        const coords = ringCoords(toLL, b.x, y, b.w, g.comprimento);
+        const num = treatmentNumber(g, b.index, j);
+        const treatName = treat.names[num-1];
+        const nameSuffix = treat.isCustom ? ` (${treatName})` : '';
+        const name = `Bloco ${b.index} - Parcela ${j+1} - Tratamento ${num}${nameSuffix}`;
+        const treatDesc = treat.isCustom ? `${num} - ${treatName}` : String(num);
+        const desc = `Bloco: ${b.index} | Parcela: ${j+1} | Tratamento: ${treatDesc} | Delineamento: ${MODE_LABEL[assignmentMode]} | Dimensões: ${fmt(g.largura)} x ${fmt(g.comprimento)} m | Área: ${fmt(g.largura*g.comprimento,0)} m²`;
+        parcelas += kmlPlacemark(name, `treatStyle${num}`, coords, desc);
+      }
+    });
+
+    let treatStyles = '';
+    for(let n = 1; n <= g.linhas; n++){
+      const c = treatColor(n);
+      treatStyles += `<Style id="treatStyle${n}"><LineStyle><color>${hexToKmlColor(c,'FF')}</color><width>1.5</width></LineStyle><PolyStyle><color>${hexToKmlColor(c,'99')}</color></PolyStyle></Style>`;
+    }
+
+    let internos = '';
+    g.internalRects.forEach((r,i) => {
+      const coords = ringCoords(toLL, r.x, r.y, r.w, r.h);
+      internos += kmlPlacemark(`Carreador interno ${i+1}`, 'carreadorInternoStyle', coords,
+        `Largura: ${fmt(g.cInterno)} m | Área: ${fmt(r.w*r.h,0)} m²`);
+    });
+
+    let limite = '';
+    g.boundaryRects.forEach(r => {
+      const coords = ringCoords(toLL, r.x, r.y, r.w, r.h);
+      limite += kmlPlacemark(r.name, 'carreadorLimiteStyle', coords,
+        `Largura: ${fmt(g.cLimite)} m | Área: ${fmt(r.w*r.h,0)} m²`);
+    });
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>Croqui do experimento</name>
+${treatStyles}
+<Style id="carreadorInternoStyle"><LineStyle><color>${hexToKmlColor(pal.tan,'FF')}</color><width>1</width></LineStyle><PolyStyle><color>${hexToKmlColor(pal.tan,'80')}</color></PolyStyle></Style>
+<Style id="carreadorLimiteStyle"><LineStyle><color>${hexToKmlColor(pal.blue,'FF')}</color><width>1</width></LineStyle><PolyStyle><color>${hexToKmlColor(pal.blue,'80')}</color></PolyStyle></Style>
+<Folder><name>Parcelas</name>${parcelas}</Folder>
+<Folder><name>Carreadores internos</name>${internos}</Folder>
+<Folder><name>Carreador de limite</name>${limite}</Folder>
+</Document>
+</kml>`;
+  }
+
+  function exportKml(){
+    const g = window.__geom;
+    if(!g) return;
+    const kml = buildKml(g);
+    downloadBlob(new Blob([kml], {type:'application/vnd.google-earth.kml+xml'}), 'croqui.kml');
+  }
+
+  $('form').addEventListener('input', render);
+  $('btnPng').addEventListener('click', exportPng);
+  $('btnKml').addEventListener('click', exportKml);
+  $('btnReshuffle').addEventListener('click', () => {
+    if(window.__geom) reshuffle(window.__geom);
+    render();
+  });
+  if(window.matchMedia){
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render);
+  }
+  new MutationObserver(render).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
+
+  render();
+})();
+</script>
+</body>
+</html>
