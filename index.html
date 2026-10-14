@@ -123,6 +123,21 @@
   }
   textarea#treatNames:focus-visible{ outline:2px solid var(--blue); outline-offset:1px; }
   #btnReshuffle{ width:100%; margin:2px 0 4px; }
+  .manual-box[hidden]{ display:none; }
+  .manual-box{ margin:2px 0 6px; }
+  .manual-box .accordion-hint{ margin:0 0 8px; }
+  .brush-palette{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+  .brush{
+    min-width:34px; padding:5px 8px; border:1px solid rgba(0,0,0,.18);
+    font-family:var(--font-mono); font-variant-numeric:tabular-nums;
+  }
+  .brush:hover{ border-color:var(--ink); }
+  .brush[aria-pressed="true"]{ outline:2.5px solid var(--ink); outline-offset:1.5px; }
+  .manual-balance{ font-size:.74rem; color:var(--ink-muted); margin:0 0 8px; line-height:1.45; }
+  .manual-balance.warn{ color:var(--danger); }
+  #svg.manual{ touch-action:none; }
+  #svg.manual rect.plot{ cursor:crosshair; }
+  #svg.manual rect.plot:hover{ opacity:.8; }
   input[type="number"]{
     width:108px; padding:6px 8px;
     border:1px solid var(--line); border-radius:6px;
@@ -251,7 +266,13 @@
               <label class="choice-row"><input type="radio" name="delineamento" value="sequencial" checked> Sequencial (sem sorteio)</label>
               <label class="choice-row"><input type="radio" name="delineamento" value="dic"> DIC — inteiramente casualizado</label>
               <label class="choice-row"><input type="radio" name="delineamento" value="dbc"> DBC — blocos casualizados</label>
+              <label class="choice-row"><input type="radio" name="delineamento" value="manual"> Manual — definido por você</label>
               <button type="button" id="btnReshuffle" hidden>Sortear novamente</button>
+              <div class="manual-box" id="manualBox" hidden>
+                <p class="accordion-hint">Escolha o tratamento e clique (ou arraste) sobre as parcelas no croqui.</p>
+                <div class="brush-palette" id="brushPalette" role="group" aria-label="Tratamento a aplicar"></div>
+                <p class="manual-balance" id="manualBalance"></p>
+              </div>
               <label class="choice-row" id="avoidAdjacentRow" hidden><input type="checkbox" id="avoidAdjacent"> Evitar mesmo tratamento em blocos vizinhos (mesma linha)</label>
               <label class="stack-label">Nomes dos tratamentos (aparecem só na legenda)<span class="hint" id="treatHint"></span>
                 <textarea id="treatNames" rows="4" placeholder="Um por linha, ex.:&#10;Testemunha&#10;Dose 1&#10;Dose 2"></textarea>
@@ -492,10 +513,10 @@
         const num = treatmentNumber(g, b.index, j);
         const color = treatColor(num);
         const ry = Y(b.y + j*g.passo);
-        s += `<rect x="${bx.toFixed(2)}" y="${ry.toFixed(2)}" width="${bw.toFixed(2)}" height="${rowH.toFixed(2)}" fill="${color}" stroke="${pal.bg}" stroke-width="1"></rect>`;
+        s += `<rect class="plot" data-b="${b.index-1}" data-j="${j}" x="${bx.toFixed(2)}" y="${ry.toFixed(2)}" width="${bw.toFixed(2)}" height="${rowH.toFixed(2)}" fill="${color}" stroke="${pal.bg}" stroke-width="1"></rect>`;
         if(showNums){
           const textColor = textOn(color);
-          s += `<text x="${(bx+bw/2).toFixed(2)}" y="${(ry+rowH/2+4).toFixed(2)}" font-family="${cssVar('--font-mono')}" font-size="12" fill="${textColor}" text-anchor="middle" opacity="0.95">${num}</text>`;
+          s += `<text x="${(bx+bw/2).toFixed(2)}" y="${(ry+rowH/2+4).toFixed(2)}" font-family="${cssVar('--font-mono')}" font-size="12" fill="${textColor}" text-anchor="middle" opacity="0.95" pointer-events="none">${num}</text>`;
         }
       }
       s += `<rect x="${bx.toFixed(2)}" y="${by.toFixed(2)}" width="${bw.toFixed(2)}" height="${bh.toFixed(2)}" fill="none" stroke="${pal.ink}" stroke-width="1.4"></rect>`;
@@ -575,12 +596,14 @@
   const MODE_LABEL = {
     sequencial: 'Sequencial (sem sorteio)',
     dic: 'DIC — Delineamento Inteiramente Casualizado',
-    dbc: 'DBC — Delineamento em Blocos Casualizados'
+    dbc: 'DBC — Delineamento em Blocos Casualizados',
+    manual: 'Manual — definido pelo usuário'
   };
   const MODE_CAPTION = {
     sequencial: 'Numeração de tratamentos em ordem fixa, sem sorteio.',
     dic: 'Tratamentos sorteados livremente em todo o experimento, sem respeitar blocos.',
-    dbc: 'Cada tratamento sorteado uma vez por bloco (repetição).'
+    dbc: 'Cada tratamento sorteado uma vez por bloco (repetição).',
+    manual: 'Tratamento de cada parcela escolhido manualmente.'
   };
 
   function computeStatsTiles(g){
@@ -675,12 +698,39 @@
 
   let lastAvoidState = null;
 
+  // Manual: [bloco][parcela] -> tratamento. Seeded from whatever was on screen (sequential or a
+  // draw) so the user can start from a draw and tweak; when the grid resizes, overlapping cells
+  // keep their value and the rest fall back to sequential.
+  let manualAssignment = null;
+  let manualBrush = 1;
+
+  function seedManual(g){
+    const fromManual = assignmentMode === 'manual' && manualAssignment;
+    manualAssignment = Array.from({length:g.blocos}, (_,b) => Array.from({length:g.linhas}, (_,j) => {
+      let n;
+      if(fromManual) n = manualAssignment[b] && manualAssignment[b][j];
+      else if(assignmentMode === 'dbc') n = perBlockAssignment && perBlockAssignment[b] && perBlockAssignment[b][j];
+      else if(assignmentMode === 'dic') n = globalAssignment && globalAssignment[b*g.linhas + j];
+      return (n >= 1 && n <= g.linhas) ? n : j+1;
+    }));
+  }
+
   function ensureAssignment(g){
-    assignmentMode = document.querySelector('input[name="delineamento"]:checked').value;
+    const newMode = document.querySelector('input[name="delineamento"]:checked').value;
+    if(newMode === 'manual'){
+      const stale = !manualAssignment || manualAssignment.length !== g.blocos ||
+        manualAssignment[0].length !== g.linhas;
+      if(stale) seedManual(g);
+      if(manualBrush > g.linhas) manualBrush = 1;
+    }
+    assignmentMode = newMode;
     const avoid = $('avoidAdjacent').checked;
-    $('btnReshuffle').hidden = (assignmentMode === 'sequencial');
-    $('avoidAdjacentRow').hidden = (assignmentMode === 'sequencial');
-    if(assignmentMode === 'sequencial'){ perBlockAssignment = null; globalAssignment = null; lastAvoidState = null; return; }
+    const isRandom = assignmentMode === 'dic' || assignmentMode === 'dbc';
+    $('btnReshuffle').hidden = !isRandom;
+    $('avoidAdjacentRow').hidden = !isRandom;
+    $('manualBox').hidden = assignmentMode !== 'manual';
+    $('svg').classList.toggle('manual', assignmentMode === 'manual');
+    if(!isRandom){ perBlockAssignment = null; globalAssignment = null; lastAvoidState = null; return; }
     if(assignmentMode === 'dbc'){
       const stale = !perBlockAssignment || perBlockAssignment.length !== g.blocos ||
         (perBlockAssignment[0] && perBlockAssignment[0].length !== g.linhas) || avoid !== lastAvoidState;
@@ -692,6 +742,7 @@
   }
 
   function treatmentNumber(g, blockIndex1, rowIndex0){
+    if(assignmentMode === 'manual' && manualAssignment) return manualAssignment[blockIndex1-1][rowIndex0];
     if(assignmentMode === 'dbc' && perBlockAssignment) return perBlockAssignment[blockIndex1-1][rowIndex0];
     if(assignmentMode === 'dic' && globalAssignment) return globalAssignment[(blockIndex1-1)*g.linhas + rowIndex0];
     return rowIndex0 + 1;
@@ -713,6 +764,25 @@
     if(raw.length === 0) hintEl.textContent = `um por linha — ${g.linhas} necessários para nomear (senão numera)`;
     else if(raw.length === g.linhas) hintEl.textContent = `${raw.length} nomes definidos`;
     else hintEl.textContent = `${raw.length} de ${g.linhas} necessários — numerando por enquanto`;
+  }
+
+  function drawManualControls(g, treat){
+    if(assignmentMode !== 'manual') return;
+    $('brushPalette').innerHTML = treat.names.map((name, i) => {
+      const num = i+1, color = treatColor(num);
+      const title = treat.isCustom ? `${num} — ${name}` : `Tratamento ${num}`;
+      return `<button type="button" class="brush" data-treat="${num}" aria-pressed="${num === manualBrush}" title="${escapeXml(title)}" style="background:${color};color:${textOn(color)}">${num}</button>`;
+    }).join('');
+
+    // Each treatment should appear once per bloco (one repetição each) — flag any that don't.
+    const counts = Array(g.linhas).fill(0);
+    manualAssignment.forEach(col => col.forEach(n => counts[n-1]++));
+    const off = counts.map((c,i) => ({ num:i+1, c })).filter(t => t.c !== g.blocos);
+    const el = $('manualBalance');
+    el.classList.toggle('warn', off.length > 0);
+    el.textContent = off.length
+      ? `Esperado ${g.blocos}× cada. Fora: ` + off.map(t => `T${t.num} ${t.c}×`).join(', ')
+      : `Cada tratamento aparece ${g.blocos}× ✓`;
   }
 
   function estTextW(text, fontSize){ return text.length * fontSize * 0.62; }
@@ -830,6 +900,7 @@
     bodyEl.hidden = false;
     ensureAssignment(g);
     updateTreatHint(g);
+    drawManualControls(g, getTreatmentInfo(g));
     drawSVG(g);
     drawStats(g);
     window.__geom = g;
@@ -971,6 +1042,35 @@ ${treatStyles}
     if(window.__geom) reshuffle(window.__geom);
     render();
   });
+
+  $('brushPalette').addEventListener('click', e => {
+    const btn = e.target.closest('[data-treat]');
+    if(!btn) return;
+    manualBrush = Number(btn.dataset.treat);
+    render();
+  });
+
+  // Click or drag to paint. The SVG is rebuilt on every paint, so the cell under the pointer is
+  // looked up by position instead of relying on pointerover from elements that get replaced.
+  let painting = false;
+  function paintAt(clientX, clientY){
+    const el = document.elementFromPoint(clientX, clientY);
+    const cell = el && el.closest && el.closest('#svg rect.plot');
+    if(!cell || !manualAssignment) return;
+    const b = Number(cell.dataset.b), j = Number(cell.dataset.j);
+    if(manualAssignment[b][j] === manualBrush) return;
+    manualAssignment[b][j] = manualBrush;
+    render();
+  }
+  $('svg').addEventListener('pointerdown', e => {
+    if(assignmentMode !== 'manual' || e.button !== 0) return;
+    painting = true;
+    e.preventDefault();
+    paintAt(e.clientX, e.clientY);
+  });
+  $('svg').addEventListener('pointermove', e => { if(painting) paintAt(e.clientX, e.clientY); });
+  window.addEventListener('pointerup', () => { painting = false; });
+  window.addEventListener('pointercancel', () => { painting = false; });
 
   const sidebar = $('sidebar');
   const sidebarBody = $('sidebarBody');
